@@ -14,9 +14,9 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Get All Book(s)
         /// </summary>
         [HttpGet]
-        public async Task<IEnumerable<Book>> Get()
+        public async Task<IEnumerable<BookDTO>> Get()
         {
-            IEnumerable<Book> books = await bookDirector.GetEntitiesAsync(default).ConfigureAwait(false);
+            IEnumerable<BookDTO> books = await bookDirector.GetEntitiesAsync(default).ConfigureAwait(false);
             return books;
         }
 
@@ -25,7 +25,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Input - Id
         /// </summary>
         [HttpGet("{bookId}")]
-        public async Task<Book> Get(string bookId)
+        public async Task<BookDTO> Get(string bookId)
         {
             var result = await bookDirector.GetEntityByIdAsync(bookId, default).ConfigureAwait(false);
             return result;
@@ -36,7 +36,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Input - Book, Id
         /// </summary>
         [HttpPut("{bookId}")]
-        public async Task<long> Put(string bookId, Book book)
+        public async Task<long> Put(string bookId, BookDTO book)
         {
             var result = await bookDirector.UpdateEntityByIdAsync(bookId, book, default).ConfigureAwait(false);
             return result;
@@ -48,7 +48,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// TODO Update based on searchValue 
         /// </summary>
         [HttpPut("Many")]
-        public async Task<long> PutMany(string searchValue, IEnumerable<Book> books)
+        public async Task<long> PutMany(string searchValue, IEnumerable<BookDTO> books)
         {
             var result = await bookDirector.UpdateEntitiesAsync(searchValue, books, default).ConfigureAwait(false);
             return result;
@@ -59,7 +59,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Input - Book
         /// </summary>
         [HttpPost]
-        public async Task<Book> Post(Book book)
+        public async Task<BookDTO> Post(BookCreateDTO book)
         {
             var bookresult = await bookDirector.CreateEntityAsync(book, default).ConfigureAwait(false);
             return bookresult;
@@ -70,7 +70,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Input - Book(s)
         /// </summary>
         [HttpPost("Many")]
-        public async Task<IEnumerable<Book>> PostMany(IEnumerable<Book> books)
+        public async Task<IEnumerable<BookDTO>> PostMany(IEnumerable<BookCreateDTO> books)
         {
             var bookresult = await bookDirector.CreateEntitiesAsync(books, default).ConfigureAwait(false);
             return bookresult;
@@ -101,7 +101,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Load and Create Multiple Book(s), Input - Static Collection
         /// </summary>
         [HttpGet("LoadAllBookForNewDatabase")]
-        public async Task<IEnumerable<Book>> LoadAllBookForNewDatabase()
+        public async Task<IEnumerable<BookDTO>> LoadAllBookForNewDatabase()
         {
             var result = await bookDirector.LoadAllEntityForNewDatabase(default).ConfigureAwait(false);
             return result;

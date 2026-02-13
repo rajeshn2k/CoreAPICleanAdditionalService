@@ -17,7 +17,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Get All Person(s)
         /// </summary>
         [HttpGet]
-        public async Task<IEnumerable<Person>> Get()
+        public async Task<IEnumerable<PersonDTO>> Get()
         {
             var result = await personDirector.GetEntitiesAsync(default).ConfigureAwait(false);
             return result;
@@ -28,7 +28,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Input - Id
         /// </summary>
         [HttpGet("{personId}")]
-        public async Task<Person> Get(string personId)
+        public async Task<PersonDTO> Get(string personId)
         {
             var result = await personDirector.GetEntityByIdAsync(personId, default).ConfigureAwait(false);
             return result;
@@ -39,7 +39,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Input - Person, Id
         /// </summary>
         [HttpPut("{personId}")]
-        public async Task<long> Put(string personId, Person person)
+        public async Task<long> Put(string personId, PersonDTO person)
         {
             var result = await personDirector.UpdateEntityByIdAsync(personId, person, default).ConfigureAwait(false);
             return result;
@@ -51,7 +51,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// TODO Update based on searchValue 
         /// </summary>
         [HttpPut("Many")]
-        public async Task<long> PutMany(string searchValue, IEnumerable<Person> persons)
+        public async Task<long> PutMany(string searchValue, IEnumerable<PersonDTO> persons)
         {
             var result = await personDirector.UpdateEntitiesAsync(searchValue, persons, default).ConfigureAwait(false);
             return result;
@@ -62,7 +62,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Input - Person
         /// </summary>
         [HttpPost]
-        public async Task<Person> Post(Person person)
+        public async Task<PersonDTO> Post(PersonCreateDTO person)
         {
             var personresult = await personDirector.CreateEntityAsync(person, default).ConfigureAwait(false);
             return personresult;
@@ -73,7 +73,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Input - Person(s)
         /// </summary>
         [HttpPost("Many")]
-        public async Task<IEnumerable<Person>> PostMany(IEnumerable<Person> persons)
+        public async Task<IEnumerable<PersonDTO>> PostMany(IEnumerable<PersonCreateDTO> persons)
         {
             var personresult = await personDirector.CreateEntitiesAsync(persons, default).ConfigureAwait(false);
             return personresult;
@@ -104,7 +104,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
         /// Load and Create Multiple Person(s), Input - Static Collection
         /// </summary>
         [HttpGet("LoadAllPersonForNewDatabase")]
-        public async Task<IEnumerable<Person>> LoadAllPersonForNewDatabase()
+        public async Task<IEnumerable<PersonDTO>> LoadAllPersonForNewDatabase()
         {
             var result = await personDirector.LoadAllEntityForNewDatabase(default).ConfigureAwait(false);
             return result;

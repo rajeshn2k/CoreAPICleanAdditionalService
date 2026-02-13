@@ -1,8 +1,9 @@
 ﻿
 namespace Core.API.AdditionalServiceLibrary
 {
-    public interface IEntityDirector<TEntity>
+    public interface IEntityDirector<TEntity, TCreate>
         where TEntity : class
+        where TCreate : class
     {
         Task<IEnumerable<TEntity>> GetEntitiesAsync(CancellationToken cancellationToken);
 
@@ -14,9 +15,9 @@ namespace Core.API.AdditionalServiceLibrary
 
         Task<long> UpdateEntitiesAsync(string searchValue, IEnumerable<TEntity> entitys, CancellationToken cancellationToken);
 
-        Task<TEntity> CreateEntityAsync(TEntity entity, CancellationToken cancellationToken);
+        Task<TEntity> CreateEntityAsync(TCreate entity, CancellationToken cancellationToken);
 
-        Task<IEnumerable<TEntity>> CreateEntitiesAsync(IEnumerable<TEntity> entitys, CancellationToken cancellationToken);
+        Task<IEnumerable<TEntity>> CreateEntitiesAsync(IEnumerable<TCreate> entitys, CancellationToken cancellationToken);
 
         Task<long> DeleteEntityByIdAsync(string entityId, CancellationToken cancellationToken);
 

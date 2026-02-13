@@ -29,6 +29,7 @@ namespace Core.API.Clean.AdditionalService
                    configuration.GetConnectionString("SqliteDBContext")
                ));
 
+            services.AddScoped<DbContext>(sp => sp.GetRequiredService<SqlDataBaseDataContext>());
 
             // Repositories
             services.AddScoped<IEntityGenericRepository<Book>, EntityFrameworkBookRepository>();

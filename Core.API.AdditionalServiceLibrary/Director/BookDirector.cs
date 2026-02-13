@@ -3,7 +3,7 @@
 
 namespace Core.API.AdditionalServiceLibrary
 {
-    public class BookDirector : IEntityDirector<Book>
+    public class BookDirector : IEntityDirector<BookDTO, BookCreateDTO>
     {
         private readonly IUnitOfWork unitOfWork;
 
@@ -12,58 +12,81 @@ namespace Core.API.AdditionalServiceLibrary
             this.unitOfWork = unitOfWork;
         }
 
-        public async Task<IEnumerable<Book>> GetEntitiesAsync(CancellationToken cancellationToken)
+        public async Task<IEnumerable<BookDTO>> GetEntitiesAsync(CancellationToken cancellationToken)
         {
             var books = await unitOfWork.BookRepository.GetEntitiesAsync(cancellationToken);
 
-            return books.OrderBy(book => book.bookName);
+            var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+
+            if (bookDTOs == null)
+            {
+                return Enumerable.Empty<BookDTO>();
+            }
+
+            return bookDTOs.OrderBy(book => book.bookName);
         }
 
-        public async Task<Book> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
+        public async Task<BookDTO> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
         {
             var book = await unitOfWork.BookRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
-            return book;
+            return BookMapper.BookToBookDTO(book);
         }
 
-        public async Task<IEnumerable<Book>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
+        public async Task<IEnumerable<BookDTO>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
         {
             var books = await unitOfWork.BookRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
-            return books;
+
+            var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+
+            if (bookDTOs == null)
+            {
+                return Enumerable.Empty<BookDTO>();
+            }
+
+            return bookDTOs.OrderBy(book => book.bookName);
         }
 
-        public async Task<long> UpdateEntityByIdAsync(string entityId, Book book, CancellationToken cancellationToken)
+        public async Task<long> UpdateEntityByIdAsync(string entityId, BookDTO book, CancellationToken cancellationToken)
         {
-            var result = await unitOfWork.BookRepository.UpdateAsync(entityId, book, cancellationToken).ConfigureAwait(false);
+            var bookEntity = BookMapper.BookDTOToBook(book);
+            var result = await unitOfWork.BookRepository.UpdateAsync(entityId, bookEntity, cancellationToken).ConfigureAwait(false);
             return result;
         }
 
-        public async Task<long> UpdateEntitiesAsync(string searchValue, IEnumerable<Book> books, CancellationToken cancellationToken)
+        public async Task<long> UpdateEntitiesAsync(string searchValue, IEnumerable<BookDTO> books, CancellationToken cancellationToken)
         {
             //TO DO - persons => true,
-            var result = await unitOfWork.BookRepository.UpdateManyAsync(books => true, books, cancellationToken).ConfigureAwait(false);
+            var bookEntities = books.Select(BookMapper.BookDTOToBook);
+            var result = await unitOfWork.BookRepository.UpdateManyAsync(bookEntities, cancellationToken).ConfigureAwait(false);
             return result;
         }
 
-        public async Task<Book> CreateEntityAsync(Book book, CancellationToken cancellationToken)
+        public async Task<BookDTO> CreateEntityAsync(BookCreateDTO book, CancellationToken cancellationToken)
         {
             if (book != null)
             {
-                await unitOfWork.BookRepository.CreateEntityAsync(book, cancellationToken).ConfigureAwait(false);
+                var bookEntity = BookMapper.BookCreateDTOToBook(book);
+                var result = await unitOfWork.BookRepository.CreateEntityAsync(bookEntity, cancellationToken).ConfigureAwait(false);
 
                 //if (!configuration.IsCurrentMessageTypeEmpty())
                 //{
                 //    await messagePublisher.PublishAsync(book, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
                 //}
+                return BookMapper.BookToBookDTO(result);
             }
 
-            return book;
+            return null;
         }
 
-        public async Task<IEnumerable<Book>> CreateEntitiesAsync(IEnumerable<Book> books, CancellationToken cancellationToken)
+        public async Task<IEnumerable<BookDTO>> CreateEntitiesAsync(IEnumerable<BookCreateDTO> books, CancellationToken cancellationToken)
         {
             if (books != null)
             {
-                await unitOfWork.BookRepository.CreateEntitiesAsync(books, cancellationToken).ConfigureAwait(false);
+                var bookEntities = books.Select(book => BookMapper.BookCreateDTOToBook(book));
+
+                var result = await unitOfWork.BookRepository.CreateEntitiesAsync(bookEntities, cancellationToken).ConfigureAwait(false);
+
+                return result.Select(BookMapper.BookToBookDTO);
 
                 //if (!configuration.IsCurrentMessageTypeEmpty())
                 //{
@@ -71,7 +94,7 @@ namespace Core.API.AdditionalServiceLibrary
                 //}
             }
 
-            return books;
+            return null;
         }
 
         public async Task<long> DeleteEntityByIdAsync(string entityId, CancellationToken cancellationToken)
@@ -87,13 +110,13 @@ namespace Core.API.AdditionalServiceLibrary
             return result;
         }
 
-        public async Task<IEnumerable<Book>> LoadAllEntityForNewDatabase(CancellationToken cancellationToken)
+        public async Task<IEnumerable<BookDTO>> LoadAllEntityForNewDatabase(CancellationToken cancellationToken)
         {
             IEnumerable<Book> books = DatabaseInitializerBook.GetBooks();
 
-            var result = await CreateEntitiesAsync(books, cancellationToken).ConfigureAwait(false);
+            var result = await unitOfWork.BookRepository.CreateEntitiesAsync(books, cancellationToken).ConfigureAwait(false);
 
-            return result;
+            return result.Select(BookMapper.BookToBookDTO);
         }
     }
 }
