@@ -1,12 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36518.9
+# Visual Studio Version 18
+VisualStudioVersion = 18.1.11312.151 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.API.Clean.AdditionalService", "Core.API.Clean.AdditionalService\Core.API.Clean.AdditionalService.csproj", "{68C67C89-D1E8-4074-B613-49FBA57A6FDC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NOTES", "NOTES", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 	ProjectSection(SolutionItems) = preProject
+		NOTES\.Net10Issue.txt = NOTES\.Net10Issue.txt
 		NOTES\Git.txt = NOTES\Git.txt
 		NOTES\Packages.txt = NOTES\Packages.txt
 		README.md = README.md

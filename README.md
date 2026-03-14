@@ -12,4 +12,4 @@ dotnet run
 
 # important note
 
-This project code base is only intended to learn C# programming and may be used for educational purposes.
+This project code base is only intended to learn C# programming.

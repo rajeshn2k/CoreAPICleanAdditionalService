@@ -5,6 +5,7 @@ public static class Program
 {
     public static void Main(string[] args)
     {
+        string assemblyName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name ?? "AdditionalService";
         // Resolve environment
         var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         if (string.IsNullOrEmpty(environment))
@@ -45,16 +46,20 @@ public static class Program
 
         // Services
         builder.Services.AddControllers();
+        builder.Services.AddOpenApi();
+
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
 
         var app = builder.Build();
 
         // Pipeline
         if (app.Environment.IsDevelopment())
         {
-            app.UseSwagger();
-            app.UseSwaggerUI();
+            app.MapOpenApi();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/openapi/v1.json", $"{assemblyName} v1");
+            });
         }
 
         app.UseHttpsRedirection();
