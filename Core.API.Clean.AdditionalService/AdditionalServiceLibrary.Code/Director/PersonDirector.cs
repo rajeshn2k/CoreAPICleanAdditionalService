@@ -6,10 +6,12 @@ namespace Core.API.AdditionalServiceLibrary
     public class PersonDirector : IEntityDirector<PersonDTO, PersonCreateDTO>
     {
         private readonly IUnitOfWork unitOfWork;
+        private readonly IMessagePublisher messagePublisher;
 
-        public PersonDirector(IUnitOfWork unitOfWork)
+        public PersonDirector(IUnitOfWork unitOfWork, IMessagePublisher messagePublisher)
         {
             this.unitOfWork = unitOfWork;
+            this.messagePublisher = messagePublisher;
         }
 
         public async Task<IEnumerable<PersonDTO>> GetEntitiesAsync(CancellationToken cancellationToken)
@@ -60,14 +62,11 @@ namespace Core.API.AdditionalServiceLibrary
 
                 var result = await unitOfWork.PersonRepository.CreateEntityAsync(personEntity, cancellationToken).ConfigureAwait(false);
 
+                await messagePublisher.PublishAsync(person, MessageTypeConstant.PersonType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
+
                 return PersonMapper.PersonToPersonDTO(result);
 
                 //await unitOfWork.CommitAsync(cancellationToken).ConfigureAwait(false); not required since save changes, but due to this intercepter not happening
-
-                //if (!configuration.IsCurrentMessageTypeEmpty())
-                //{
-                //    await messagePublisher.PublishAsync(person, MessageTypeConstant.PersonType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
-                //}
             }
 
             return null;
@@ -81,13 +80,9 @@ namespace Core.API.AdditionalServiceLibrary
 
                 var result = await unitOfWork.PersonRepository.CreateEntitiesAsync(personEntities, cancellationToken).ConfigureAwait(false);
 
-                return result.Select(PersonMapper.PersonToPersonDTO);
+                await messagePublisher.PublishAsync(persons, MessageTypeConstant.PersonType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
 
-                //MessageActionConstant.CreateMany,
-                //if (!configuration.IsCurrentMessageTypeEmpty())
-                //{
-                //    await messagePublisher.PublishAsync(persons, MessageTypeConstant.PersonType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
-                //}
+                return result.Select(PersonMapper.PersonToPersonDTO);
             }
 
             return null;

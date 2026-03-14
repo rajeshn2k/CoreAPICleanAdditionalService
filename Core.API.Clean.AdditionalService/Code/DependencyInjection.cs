@@ -10,12 +10,18 @@ namespace Core.API.Clean.AdditionalService
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            services.AddSingleton<IConfiguration>(configuration);
+            services.AddSingleton(configuration);
 
             // Logger
             //services.AddSingleton<ServiceActionLogger>();
 
             ConfigureServices_DataAccess(services, configuration);
+
+            // Add Unit of Work and Directors
+            services.AddTransient<BookDirector>();
+            services.AddTransient<PersonDirector>();
+
+            services.AddScoped<IMessagePublisher, EmptyMessagePublisher>();
 
             return services;
         }
@@ -37,10 +43,6 @@ namespace Core.API.Clean.AdditionalService
 
             // Unit of Work
             services.AddScoped<IUnitOfWork, SqlDatabaseUnitOfWork>();
-
-            // Add Unit of Work and Directors
-            services.AddTransient<BookDirector>();
-            services.AddTransient<PersonDirector>();
         }
     }
 }

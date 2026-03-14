@@ -6,10 +6,12 @@ namespace Core.API.AdditionalServiceLibrary
     public class BookDirector : IEntityDirector<BookDTO, BookCreateDTO>
     {
         private readonly IUnitOfWork unitOfWork;
+        private readonly IMessagePublisher messagePublisher;
 
-        public BookDirector(IUnitOfWork unitOfWork)
+        public BookDirector(IUnitOfWork unitOfWork, IMessagePublisher messagePublisher)
         {
             this.unitOfWork = unitOfWork;
+            this.messagePublisher = messagePublisher;
         }
 
         public async Task<IEnumerable<BookDTO>> GetEntitiesAsync(CancellationToken cancellationToken)
@@ -66,12 +68,11 @@ namespace Core.API.AdditionalServiceLibrary
             if (book != null)
             {
                 var bookEntity = BookMapper.BookCreateDTOToBook(book);
+
                 var result = await unitOfWork.BookRepository.CreateEntityAsync(bookEntity, cancellationToken).ConfigureAwait(false);
 
-                //if (!configuration.IsCurrentMessageTypeEmpty())
-                //{
-                //    await messagePublisher.PublishAsync(book, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
-                //}
+                await messagePublisher.PublishAsync(book, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
+
                 return BookMapper.BookToBookDTO(result);
             }
 
@@ -86,12 +87,9 @@ namespace Core.API.AdditionalServiceLibrary
 
                 var result = await unitOfWork.BookRepository.CreateEntitiesAsync(bookEntities, cancellationToken).ConfigureAwait(false);
 
-                return result.Select(BookMapper.BookToBookDTO);
+                await messagePublisher.PublishAsync(books, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
 
-                //if (!configuration.IsCurrentMessageTypeEmpty())
-                //{
-                //    await messagePublisher.PublishAsync(books, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
-                //}
+                return result.Select(BookMapper.BookToBookDTO);
             }
 
             return null;
