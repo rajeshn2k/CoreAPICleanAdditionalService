@@ -112,9 +112,18 @@ namespace Core.API.AdditionalServiceLibrary
         {
             IEnumerable<Book> books = DatabaseInitializerBook.GetBooks();
 
-            var result = await unitOfWork.BookRepository.CreateEntitiesAsync(books, cancellationToken).ConfigureAwait(false);
+            var personCount = await unitOfWork.PersonRepository.GetEntitiesAsync(cancellationToken);
 
-            return result.Select(BookMapper.BookToBookDTO);
+            if (personCount?.Count() > 0)
+            {
+                var result = await unitOfWork.BookRepository.CreateEntitiesAsync(books, cancellationToken).ConfigureAwait(false);
+
+                return result.Select(BookMapper.BookToBookDTO);
+            }
+            else
+            {
+                throw new Exception("MUST LOAD PERSON COLLECTION BEFORE BOOK COLLECTION");
+            }
         }
     }
 }

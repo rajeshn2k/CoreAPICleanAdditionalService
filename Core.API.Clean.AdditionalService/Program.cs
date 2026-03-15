@@ -6,6 +6,7 @@ public static class Program
     public static void Main(string[] args)
     {
         string assemblyName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name ?? "AdditionalService";
+
         // Resolve environment
         var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         if (string.IsNullOrEmpty(environment))
@@ -44,6 +45,18 @@ public static class Program
         // Dependency Injection - Application Services
         builder.Services.AddApplicationServices(builder.Configuration);
 
+        // Add CORS
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAll",
+                policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                });
+        });
+
         // Services
         builder.Services.AddControllers();
         builder.Services.AddOpenApi();
@@ -51,6 +64,9 @@ public static class Program
         builder.Services.AddEndpointsApiExplorer();
 
         var app = builder.Build();
+
+        // Use CORS
+        app.UseCors("AllowAll");
 
         // Pipeline
         if (app.Environment.IsDevelopment())
