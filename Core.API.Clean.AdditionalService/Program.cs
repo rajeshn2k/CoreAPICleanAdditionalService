@@ -59,11 +59,14 @@ public static class Program
 
         // Services
         builder.Services.AddControllers();
-        builder.Services.AddOpenApi();
 
+        //SWAGER
+        builder.Services.AddOpenApi();
         builder.Services.AddEndpointsApiExplorer();
 
         var app = builder.Build();
+
+        // Pipeline
 
         // Use CORS
         app.UseCors("AllowAll");
