@@ -1,7 +1,6 @@
-﻿using Core.Library.ArivuTharavuThalam;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
-namespace Core.API.AdditionalServiceLibrary
+namespace Core.Library.Clean.AdditionalService
 {
     public class SqlDataBaseDataContext : DbContext
     {

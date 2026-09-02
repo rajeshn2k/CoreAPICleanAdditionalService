@@ -1,4 +1,4 @@
-﻿using Core.API.AdditionalServiceLibrary;
+﻿using Core.Library.Clean.AdditionalService;
 using Core.API.Clean.AdditionalService;
 
 public static class Program

@@ -1,6 +1,4 @@
-﻿using Core.Library.ArivuTharavuThalam;
-
-namespace Core.API.AdditionalServiceLibrary
+﻿namespace Core.Library.Clean.AdditionalService
 {
     public interface IUnitOfWork
     {

@@ -1,0 +1,34 @@
+﻿using Newtonsoft.Json;
+
+#nullable disable
+
+namespace Core.Library.Clean.AdditionalService
+{
+    public class Person
+    {
+        public string Id { get; set; }
+
+        [JsonProperty("firstName")]
+        public string firstName { get; set; }
+
+        [JsonProperty("lastName")]
+        public string lastName { get; set; }
+
+        [JsonProperty("rank")]
+        public int rank { get; set; }
+
+        [JsonProperty("category")]
+        public string category { get; set; }
+
+        [JsonProperty("dateOfBirth")]
+        public DateTime dateOfBirth { get; set; }
+
+        [JsonProperty("isPlayCricket")]
+        public bool isPlayCricket { get; set; }
+
+        [JsonProperty("dateCreated")]
+        public DateTime dateCreated { get; set; }
+
+        public ICollection<Book>? Books { get; set; } = new List<Book>();
+    }
+}

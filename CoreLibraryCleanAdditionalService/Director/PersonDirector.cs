@@ -1,7 +1,6 @@
-﻿using Core.Library.ArivuTharavuThalam;
-#nullable disable
+﻿#nullable disable
 
-namespace Core.API.AdditionalServiceLibrary
+namespace Core.Library.Clean.AdditionalService
 {
     public class PersonDirector : IEntityDirector<PersonDTO, PersonCreateDTO>
     {

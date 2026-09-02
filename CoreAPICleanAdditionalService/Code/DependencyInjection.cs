@@ -1,5 +1,4 @@
-﻿using Core.API.AdditionalServiceLibrary;
-using Core.Library.ArivuTharavuThalam;
+﻿using Core.Library.Clean.AdditionalService;
 using Microsoft.EntityFrameworkCore;
 
 namespace Core.API.Clean.AdditionalService

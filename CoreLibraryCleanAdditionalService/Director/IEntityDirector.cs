@@ -1,5 +1,5 @@
 ﻿
-namespace Core.API.AdditionalServiceLibrary
+namespace Core.Library.Clean.AdditionalService
 {
     public interface IEntityDirector<TEntity, TCreate>
         where TEntity : class
