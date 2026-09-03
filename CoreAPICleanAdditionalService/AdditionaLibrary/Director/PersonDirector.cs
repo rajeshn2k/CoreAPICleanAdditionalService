@@ -1,6 +1,4 @@
-﻿#nullable disable
-
-namespace Core.Library.Clean.AdditionalService
+﻿namespace Core.Library.Clean.AdditionalService
 {
     public class PersonDirector : IEntityDirector<PersonDTO, PersonCreateDTO>
     {

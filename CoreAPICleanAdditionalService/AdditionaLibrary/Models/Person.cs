@@ -1,7 +1,5 @@
 ﻿using Newtonsoft.Json;
 
-#nullable disable
-
 namespace Core.Library.Clean.AdditionalService
 {
     public class Person

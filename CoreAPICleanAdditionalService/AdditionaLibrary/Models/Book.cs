@@ -2,8 +2,6 @@
 using Newtonsoft.Json;
 using System.ComponentModel.DataAnnotations.Schema;
 
-#nullable disable
-
 namespace Core.Library.Clean.AdditionalService
 {
     public class Book

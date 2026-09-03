@@ -11,7 +11,7 @@ namespace Core.Library.Clean.AdditionalService
     /// BUT idea implementation class of IEntityGenericRepository should provide a wrapper for DIRECTOR USAGE
     /// </summary>
     /// <typeparam name="TEntity"></typeparam>
-    public class EntityFrameworkGenericRepository<TEntity> : IGenericRepository<TEntity>
+    public class EntityFrameworkGenericRepository<TEntity>
         where TEntity : class
     {
         private readonly DbSet<TEntity> dbSet;

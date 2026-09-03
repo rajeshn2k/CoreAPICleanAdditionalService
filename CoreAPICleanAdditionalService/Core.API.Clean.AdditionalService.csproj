@@ -2,7 +2,7 @@
 
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
-		<Nullable>enable</Nullable>
+		<Nullable>disable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 
@@ -25,10 +25,6 @@
 
 	<ItemGroup>
 		<Folder Include="Controllers\" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <ProjectReference Include="..\CoreLibraryCleanAdditionalService\Core.Library.Clean.AdditionalService.csproj" />
 	</ItemGroup>
 
 </Project>
