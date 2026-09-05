@@ -7,6 +7,8 @@
 
         Task<IEnumerable<TEntity>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken);
 
+        Task<IEnumerable<TEntity>> SearchEntitiesByForeignIdAsync(string foreignId, CancellationToken cancellationToken);
+
         Task<TEntity> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken);
 
         Task<TEntity> CreateEntityAsync(TEntity entity, CancellationToken cancellationToken);

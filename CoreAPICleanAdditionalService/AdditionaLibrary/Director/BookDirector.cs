@@ -15,49 +15,89 @@
         {
             var books = await unitOfWork.BookRepository.GetEntitiesAsync(cancellationToken);
 
-            var bookDTOs = books.Select(BookMapper.BookToBookDTO);
-
-            if (bookDTOs == null)
+            if (books == null)
             {
-                return Enumerable.Empty<BookDTO>();
+                return null;
             }
-
-            return bookDTOs.OrderBy(book => book.bookName);
+            else
+            {
+                return books.Select(BookMapper.BookToBookDTO);
+            }
         }
 
         public async Task<BookDTO> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
         {
             var book = await unitOfWork.BookRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
-            return BookMapper.BookToBookDTO(book);
+
+            if (book == null)
+            {
+                return null;
+            }
+            else
+            {
+                return BookMapper.BookToBookDTO(book);
+            }
         }
 
         public async Task<IEnumerable<BookDTO>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
         {
             var books = await unitOfWork.BookRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
 
-            var bookDTOs = books.Select(BookMapper.BookToBookDTO);
-
-            if (bookDTOs == null)
+            if (books == null)
             {
-                return Enumerable.Empty<BookDTO>();
+                return null;
             }
+            else
+            {
+                return books.Select(BookMapper.BookToBookDTO);
+            }
+        }
+        public async Task<IEnumerable<BookDTO>> SearchEntitiesByForeignIdAsync(string personId, CancellationToken cancellationToken)
+        {
+            var books = await unitOfWork.BookRepository.SearchEntitiesByForeignIdAsync(personId, cancellationToken).ConfigureAwait(false);
 
-            return bookDTOs.OrderBy(book => book.bookName);
+            if (books == null)
+            {
+                return null;
+            }
+            else
+            {
+                return books.Select(BookMapper.BookToBookDTO);
+            }
         }
 
         public async Task<long> UpdateEntityByIdAsync(string entityId, BookDTO book, CancellationToken cancellationToken)
         {
-            var bookEntity = BookMapper.BookDTOToBook(book);
-            var result = await unitOfWork.BookRepository.UpdateAsync(entityId, bookEntity, cancellationToken).ConfigureAwait(false);
-            return result;
+            if (book != null)
+            {
+                var bookEntity = BookMapper.BookDTOToBook(book);
+
+                var result = await unitOfWork.BookRepository.UpdateAsync(entityId, bookEntity, cancellationToken).ConfigureAwait(false);
+
+                if (result > 0)
+                    await messagePublisher.PublishAsync(bookEntity, MessageTypeConstant.BookType, MessageActionConstant.Update, cancellationToken).ConfigureAwait(false);
+
+                return result;
+            }
+
+            return 0;
         }
 
-        public async Task<long> UpdateEntitiesAsync(string searchValue, IEnumerable<BookDTO> books, CancellationToken cancellationToken)
+        public async Task<long> UpdateEntitiesAsync(IEnumerable<string> bookIds, IEnumerable<BookDTO> books, CancellationToken cancellationToken)
         {
-            //TO DO - persons => true,
-            var bookEntities = books.Select(BookMapper.BookDTOToBook);
-            var result = await unitOfWork.BookRepository.UpdateManyAsync(bookEntities, cancellationToken).ConfigureAwait(false);
-            return result;
+            if (books != null)
+            {
+                var bookEntities = books.Select(book => BookMapper.BookDTOToBook(book));
+
+                var result = await unitOfWork.BookRepository.UpdateManyAsync(bookEntities, cancellationToken).ConfigureAwait(false);
+
+                if (result > 0)
+                    await messagePublisher.PublishAsync(books, MessageTypeConstant.BookType, MessageActionConstant.Update, cancellationToken).ConfigureAwait(false);
+
+                return result;
+            }
+
+            return 0;
         }
 
         public async Task<BookDTO> CreateEntityAsync(BookCreateDTO book, CancellationToken cancellationToken)
@@ -68,9 +108,12 @@
 
                 var result = await unitOfWork.BookRepository.CreateEntityAsync(bookEntity, cancellationToken).ConfigureAwait(false);
 
-                await messagePublisher.PublishAsync(book, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
+                if (result != null)
+                {
+                    await messagePublisher.PublishAsync(book, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
 
-                return BookMapper.BookToBookDTO(result);
+                    return BookMapper.BookToBookDTO(result);
+                }
             }
 
             return null;
@@ -84,9 +127,12 @@
 
                 var result = await unitOfWork.BookRepository.CreateEntitiesAsync(bookEntities, cancellationToken).ConfigureAwait(false);
 
-                await messagePublisher.PublishAsync(books, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
+                if (result != null)
+                {
+                    await messagePublisher.PublishAsync(books, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
 
-                return result.Select(BookMapper.BookToBookDTO);
+                    return result.Select(BookMapper.BookToBookDTO);
+                }
             }
 
             return null;
@@ -115,12 +161,13 @@
             {
                 var result = await unitOfWork.BookRepository.CreateEntitiesAsync(books, cancellationToken).ConfigureAwait(false);
 
-                return result.Select(BookMapper.BookToBookDTO);
+                if (result != null)
+                {
+                    return result.Select(BookMapper.BookToBookDTO);
+                }
             }
-            else
-            {
-                throw new Exception("MUST LOAD PERSON COLLECTION BEFORE BOOK COLLECTION");
-            }
+
+            return null;
         }
     }
 }

@@ -26,7 +26,13 @@ namespace Core.Library.Clean.AdditionalService
 
         public async Task<IEnumerable<Book>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
         {
-            return await FindAllAsync(book => book.bookCategory == searchValue, cancellationToken).ConfigureAwait(false);
+            searchValue = searchValue.ToLower();
+            return await FindAllAsync(book => book.bookCategory.ToLower().Contains(searchValue) || book.bookName.ToLower().Contains(searchValue), cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<IEnumerable<Book>> SearchEntitiesByForeignIdAsync(string personId, CancellationToken cancellationToken)
+        {
+            return await FindAllAsync(book => book.personId == personId, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<Book> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
@@ -90,7 +96,24 @@ namespace Core.Library.Clean.AdditionalService
         {
             try
             {
-                return await UpdateAsync(book => book.Id == entityId, entity, cancellationToken).ConfigureAwait(false);
+                var entityToBeUpdated = await GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
+
+                if (entityToBeUpdated != null)
+                {
+                    entityToBeUpdated.dateCreated = DateTime.Now;
+                    entityToBeUpdated.bookCategory = entity.bookCategory;
+                    entityToBeUpdated.edition = entity.edition;
+                    entityToBeUpdated.image = entity.image;
+                    entityToBeUpdated.personId = entity.personId;
+                    entityToBeUpdated.price = entity.price;
+
+                    return await UpdateAsync(entityToBeUpdated, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    Console.WriteLine($"Unable to find entity in database {entity.Id}");
+                    return 0;
+                }
             }
             catch (Exception ex)
             {
@@ -99,11 +122,43 @@ namespace Core.Library.Clean.AdditionalService
             }
         }
 
-        public new async Task<long> UpdateManyAsync(IEnumerable<Book> entityies, CancellationToken cancellationToken)
+        public async Task<long> UpdateManyAsync(IEnumerable<string> entityIds, IEnumerable<Book> entityies, CancellationToken cancellationToken)
         {
             try
             {
-                return await base.UpdateManyAsync(entityies, cancellationToken).ConfigureAwait(false);
+                List<Book> entitiesToBeUpdated = new List<Book>();
+
+                foreach (var entityId in entityIds)
+                {
+                    var entity = entityies.Where(b => b.Id == entityId).FirstOrDefault();
+
+                    if (entity != null)
+                    {
+                        var entityToBeUpdated = await GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
+
+                        if (entityToBeUpdated != null)
+                        {
+                            entityToBeUpdated.dateCreated = DateTime.Now;
+                            entityToBeUpdated.bookCategory = entity.bookCategory;
+                            entityToBeUpdated.edition = entity.edition;
+                            entityToBeUpdated.image = entity.image;
+                            entityToBeUpdated.personId = entity.personId;
+                            entityToBeUpdated.price = entity.price;
+
+                            entitiesToBeUpdated.Add(entityToBeUpdated);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Unable to find entity in database {entity.Id}");
+                        }
+                    }
+                }
+
+                if (entitiesToBeUpdated.Count > 0)
+                {
+                    return await UpdateManyAsync(entitiesToBeUpdated, cancellationToken).ConfigureAwait(false);
+                }
+                return 0;
             }
             catch (Exception ex)
             {

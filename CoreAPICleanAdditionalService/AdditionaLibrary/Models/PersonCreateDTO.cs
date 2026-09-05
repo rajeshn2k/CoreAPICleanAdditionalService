@@ -12,6 +12,6 @@
 
         public DateTime dateOfBirth { get; set; }
 
-        public bool isPlayCricket { get; set; }
+        public bool isPlaySports { get; set; }
     }
 }

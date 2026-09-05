@@ -1,4 +1,7 @@
-﻿namespace Core.Library.Clean.AdditionalService
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Core.Library.Clean.AdditionalService
 {
     public class PersonDirector : IEntityDirector<PersonDTO, PersonCreateDTO>
     {
@@ -15,40 +18,88 @@
         {
             var persons = await unitOfWork.PersonRepository.GetEntitiesAsync(cancellationToken);
 
-            var personDTOs = persons.Select(PersonMapper.PersonToPersonDTO);
-
-            if (personDTOs == null)
+            if (persons != null)
             {
-                return Enumerable.Empty<PersonDTO>();
+                return persons.Select(PersonMapper.PersonToPersonDTO);
             }
 
-            return personDTOs.OrderBy(person => person.firstName);
+            return null;
         }
 
         public async Task<PersonDTO> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
         {
             var result = await unitOfWork.PersonRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
-            return PersonMapper.PersonToPersonDTO(result);
+
+            if (result != null)
+            {
+                return PersonMapper.PersonToPersonDTO(result);
+            }
+
+            return null;
         }
 
         public async Task<IEnumerable<PersonDTO>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
         {
             var results = await unitOfWork.PersonRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
-            return results.Select(PersonMapper.PersonToPersonDTO);
+
+            if (results != null)
+            {
+                return results.Select(PersonMapper.PersonToPersonDTO);
+            }
+
+            return null;
+        }
+
+        public async Task<IEnumerable<PersonDTO>> SearchEntitiesByForeignIdAsync(string bookId, CancellationToken cancellationToken)
+        {
+            var book = await unitOfWork.BookRepository.GetEntityByIdAsync(bookId, cancellationToken).ConfigureAwait(false);
+
+            if (book != null)
+            {
+                var result = await unitOfWork.PersonRepository.GetEntityByIdAsync(book.personId, cancellationToken).ConfigureAwait(false);
+
+                if (result != null)
+                {
+                    return [PersonMapper.PersonToPersonDTO(result)];
+                }
+            }
+
+            return null;
         }
 
         public async Task<long> UpdateEntityByIdAsync(string entityId, PersonDTO person, CancellationToken cancellationToken)
         {
-            var personEntity = PersonMapper.PersonDTOToPerson(person);
-            var result = await unitOfWork.PersonRepository.UpdateAsync(entityId, personEntity, cancellationToken).ConfigureAwait(false);
-            return result;
+            if (person != null)
+            {
+                var personEntity = PersonMapper.PersonDTOToPerson(person);
+
+                var result = await unitOfWork.PersonRepository.UpdateAsync(entityId, personEntity, cancellationToken).ConfigureAwait(false);
+
+                await messagePublisher.PublishAsync(person, MessageTypeConstant.PersonType, MessageActionConstant.Update, cancellationToken).ConfigureAwait(false);
+
+                return result;
+            }
+
+            return 0;
         }
 
-        public async Task<long> UpdateEntitiesAsync(string searchValue, IEnumerable<PersonDTO> persons, CancellationToken cancellationToken)
+        public async Task<long> UpdateEntitiesAsync(IEnumerable<string> personsIds, IEnumerable<PersonDTO> persons, CancellationToken cancellationToken)
         {
-            var personEntities = persons.Select(PersonMapper.PersonDTOToPerson);
-            var result = await unitOfWork.PersonRepository.UpdateManyAsync(personEntities, cancellationToken).ConfigureAwait(false);
-            return result;
+            if (persons != null)
+            {
+                var personEntities = persons.Select(PersonMapper.PersonDTOToPerson);
+
+                var result = await unitOfWork.PersonRepository.UpdateManyAsync(personEntities, cancellationToken).ConfigureAwait(false);
+
+                if (result > 0)
+                {
+                    await messagePublisher.PublishAsync(personEntities, MessageTypeConstant.PersonType, MessageActionConstant.Update, cancellationToken).ConfigureAwait(false);
+
+                    return result;
+                }
+            }
+
+            return 0;
         }
 
         public async Task<PersonDTO> CreateEntityAsync(PersonCreateDTO person, CancellationToken cancellationToken)
@@ -59,9 +110,12 @@
 
                 var result = await unitOfWork.PersonRepository.CreateEntityAsync(personEntity, cancellationToken).ConfigureAwait(false);
 
-                await messagePublisher.PublishAsync(person, MessageTypeConstant.PersonType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
+                if (result != null)
+                {
+                    await messagePublisher.PublishAsync(person, MessageTypeConstant.PersonType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
 
-                return PersonMapper.PersonToPersonDTO(result);
+                    return PersonMapper.PersonToPersonDTO(result);
+                }
 
                 //await unitOfWork.CommitAsync(cancellationToken).ConfigureAwait(false); not required since save changes, but due to this intercepter not happening
             }
@@ -77,9 +131,12 @@
 
                 var result = await unitOfWork.PersonRepository.CreateEntitiesAsync(personEntities, cancellationToken).ConfigureAwait(false);
 
-                await messagePublisher.PublishAsync(persons, MessageTypeConstant.PersonType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
+                if (result != null)
+                {
+                    await messagePublisher.PublishAsync(persons, MessageTypeConstant.PersonType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
 
-                return result.Select(PersonMapper.PersonToPersonDTO);
+                    return result.Select(PersonMapper.PersonToPersonDTO);
+                }
             }
 
             return null;
@@ -105,7 +162,12 @@
 
             var result = await unitOfWork.PersonRepository.CreateEntitiesAsync(persons, cancellationToken).ConfigureAwait(false);
 
-            return result.Select(PersonMapper.PersonToPersonDTO);
+            if (result != null)
+            {
+                return result.Select(PersonMapper.PersonToPersonDTO);
+            }
+
+            return null;
         }
     }
 }

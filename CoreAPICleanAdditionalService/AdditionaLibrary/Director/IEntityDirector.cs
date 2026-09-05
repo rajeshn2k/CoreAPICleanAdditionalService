@@ -11,9 +11,11 @@ namespace Core.Library.Clean.AdditionalService
 
         Task<IEnumerable<TEntity>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken);
 
+        Task<IEnumerable<TEntity>> SearchEntitiesByForeignIdAsync(string foreignId, CancellationToken cancellationToken);
+
         Task<long> UpdateEntityByIdAsync(string entityId, TEntity entity, CancellationToken cancellationToken);
 
-        Task<long> UpdateEntitiesAsync(string searchValue, IEnumerable<TEntity> entitys, CancellationToken cancellationToken);
+        Task<long> UpdateEntitiesAsync(IEnumerable<string> bookIds, IEnumerable<TEntity> entitys, CancellationToken cancellationToken);
 
         Task<TEntity> CreateEntityAsync(TCreate entity, CancellationToken cancellationToken);
 

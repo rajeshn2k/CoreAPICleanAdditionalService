@@ -6,10 +6,11 @@ namespace Core.Library.Clean.AdditionalService
 {
     public class Book
     {
+        [JsonProperty("id")]
         public string Id { get; set; }
 
-        [DatabaseGeneratedAttribute(DatabaseGeneratedOption.None)]
         [JsonProperty("personId")]
+        [ForeignKey("personId")]
         public string? personId { get; set; }
 
         [JsonProperty("bookCategory")]
@@ -29,8 +30,5 @@ namespace Core.Library.Clean.AdditionalService
 
         [JsonProperty("dateCreated")]
         public DateTime dateCreated { get; set; }
-
-        [ForeignKey(nameof(personId))]
-        public Person? Author { get; set; }
     }
 }

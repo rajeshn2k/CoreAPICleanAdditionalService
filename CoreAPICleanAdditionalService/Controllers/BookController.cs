@@ -9,9 +9,6 @@ namespace Core.API.Clean.AdditionalService.Controllers
     {
         private readonly BookDirector bookDirector = bookDirector;
 
-        /// <summary>
-        /// Get All Book(s)
-        /// </summary>
         [HttpGet]
         public async Task<IEnumerable<BookDTO>> Get()
         {
@@ -19,21 +16,27 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return books;
         }
 
-        /// <summary>
-        /// Get Single Book by Id
-        /// Input - Id
-        /// </summary>
         [HttpGet("{bookId}")]
-        public async Task<BookDTO> Get(string bookId)
+        public async Task<BookDTO> GetById(string bookId)
         {
             var result = await bookDirector.GetEntityByIdAsync(bookId, default).ConfigureAwait(false);
             return result;
         }
 
-        /// <summary>
-        /// Update Single Book by Id
-        /// Input - Book, Id
-        /// </summary>
+        [HttpGet("SearchByBook/{searchVale}")]
+        public async Task<IEnumerable<BookDTO>> SearchByBook(string searchVale)
+        {
+            var result = await bookDirector.SearchEntitiesAsync(searchVale, default).ConfigureAwait(false);
+            return result;
+        }
+
+        [HttpGet("SearchByPerson/{personId}")]
+        public async Task<IEnumerable<BookDTO>> SearchByPerson(string personId)
+        {
+            var result = await bookDirector.SearchEntitiesByForeignIdAsync(personId, default).ConfigureAwait(false);
+            return result;
+        }
+
         [HttpPut("{bookId}")]
         public async Task<long> Put(string bookId, BookDTO book)
         {
@@ -41,22 +44,13 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return result;
         }
 
-        /// <summary>
-        /// Update Multiple Book
-        /// Input - Book(s)
-        /// TODO Update based on searchValue 
-        /// </summary>
-        [HttpPut("Many")]
-        public async Task<long> PutMany(string searchValue, IEnumerable<BookDTO> books)
-        {
-            var result = await bookDirector.UpdateEntitiesAsync(searchValue, books, default).ConfigureAwait(false);
-            return result;
-        }
+        //[HttpPut("Many")]
+        //public async Task<long> PutMany(IEnumerable<string> bookIds, IEnumerable<BookDTO> books)
+        //{
+        //    var result = await bookDirector.UpdateEntitiesAsync(bookIds, books, default).ConfigureAwait(false);
+        //    return result;
+        //}
 
-        /// <summary>
-        /// Create Single Book
-        /// Input - Book
-        /// </summary>
         [HttpPost]
         public async Task<BookDTO> Post(BookCreateDTO book)
         {
@@ -64,10 +58,6 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return bookresult;
         }
 
-        /// <summary>
-        /// Create Multiple Book(s)
-        /// Input - Book(s)
-        /// </summary>
         [HttpPost("Many")]
         public async Task<IEnumerable<BookDTO>> PostMany(IEnumerable<BookCreateDTO> books)
         {
@@ -75,10 +65,6 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return bookresult;
         }
 
-        /// <summary>
-        /// Delete Single Book
-        /// Input - Id
-        /// </summary>
         [HttpDelete("{bookId}")]
         public async Task<long> Delete(string bookId)
         {
@@ -86,9 +72,6 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return result;
         }
 
-        /// <summary>
-        /// Delete Multiple Book(s)
-        /// </summary>
         [HttpDelete("Many")]
         public async Task<long> DeleteAll()
         {
@@ -96,9 +79,6 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return result;
         }
 
-        /// <summary>
-        /// Load and Create Multiple Book(s), Input - Static Collection
-        /// </summary>
         [HttpGet("LoadAllBookForNewDatabase")]
         public async Task<IEnumerable<BookDTO>> LoadAllBookForNewDatabase()
         {

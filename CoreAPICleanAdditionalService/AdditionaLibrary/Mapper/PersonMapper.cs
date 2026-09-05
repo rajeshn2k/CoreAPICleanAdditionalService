@@ -18,7 +18,7 @@
                 rank = person.rank,
                 category = person.category,
                 dateOfBirth = person.dateOfBirth,
-                isPlayCricket = person.isPlayCricket,
+                isPlaySports = person.isPlaySports,
                 dateCreated = person.dateCreated
             };
         }
@@ -35,7 +35,7 @@
                 rank = dto.rank,
                 category = dto.category,
                 dateOfBirth = dto.dateOfBirth,
-                isPlayCricket = dto.isPlayCricket,
+                isPlaySports = dto.isPlaySports,
                 dateCreated = dto.dateCreated
             };
         }
@@ -51,7 +51,7 @@
                 rank = person.rank,
                 category = person.category,
                 dateOfBirth = person.dateOfBirth,
-                isPlayCricket = person.isPlayCricket
+                isPlaySports = person.isPlaySports
             };
         }
 
@@ -66,7 +66,7 @@
                 rank = dto.rank,
                 category = dto.category,
                 dateOfBirth = dto.dateOfBirth,
-                isPlayCricket = dto.isPlayCricket
+                isPlaySports = dto.isPlaySports
             };
         }
     }

@@ -94,26 +94,15 @@ namespace Core.Library.Clean.AdditionalService
             return result;
         }
 
-        public virtual async Task<long> UpdateAsync(Expression<Func<TEntity, bool>> predicate, TEntity entity, CancellationToken cancellationToken)
+        public virtual async Task<long> UpdateAsync(TEntity entity, CancellationToken cancellationToken)
         {
-            var resultToUpdate = await FindOneAsync(predicate, cancellationToken).ConfigureAwait(false);
+            dbSet.Update(entity);
 
-            if (resultToUpdate == null)
-            {
-                Logger.LogInformation([$"--> EntityFramework - FAILED to find object for given predicate on Update for {typeOfEntity.Name}"]);
+            var result = await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-                return default;
-            }
-            else
-            {
-                dbSet.Update(entity);
+            Logger.LogInformation([$"--> EntityFramework - {result} rows UPDATED for {typeOfEntity.Name}"]);
 
-                var result = await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-                Logger.LogInformation([$"--> EntityFramework - {result} rows UPDATED for {typeOfEntity.Name}"]);
-
-                return result;
-            }
+            return result;
         }
 
         public virtual async Task<long> UpdateManyAsync(IEnumerable<TEntity> entityies, CancellationToken cancellationToken)

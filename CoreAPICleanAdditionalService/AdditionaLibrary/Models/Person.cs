@@ -4,6 +4,7 @@ namespace Core.Library.Clean.AdditionalService
 {
     public class Person
     {
+        [JsonProperty("id")]
         public string Id { get; set; }
 
         [JsonProperty("firstName")]
@@ -21,12 +22,10 @@ namespace Core.Library.Clean.AdditionalService
         [JsonProperty("dateOfBirth")]
         public DateTime dateOfBirth { get; set; }
 
-        [JsonProperty("isPlayCricket")]
-        public bool isPlayCricket { get; set; }
+        [JsonProperty("isPlaySports")]
+        public bool isPlaySports { get; set; }
 
         [JsonProperty("dateCreated")]
         public DateTime dateCreated { get; set; }
-
-        public ICollection<Book>? Books { get; set; } = new List<Book>();
     }
 }

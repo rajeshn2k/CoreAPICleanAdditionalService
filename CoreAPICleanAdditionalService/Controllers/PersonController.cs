@@ -12,9 +12,6 @@ namespace Core.API.Clean.AdditionalService.Controllers
     {
         private readonly PersonDirector personDirector = personDirector;
 
-        /// <summary>
-        /// Get All Person(s)
-        /// </summary>
         [HttpGet]
         public async Task<IEnumerable<PersonDTO>> Get()
         {
@@ -22,21 +19,27 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return result;
         }
 
-        /// <summary>
-        /// Get Single Person by Id
-        /// Input - Id
-        /// </summary>
         [HttpGet("{personId}")]
-        public async Task<PersonDTO> Get(string personId)
+        public async Task<PersonDTO> GetById(string personId)
         {
             var result = await personDirector.GetEntityByIdAsync(personId, default).ConfigureAwait(false);
             return result;
         }
 
-        /// <summary>
-        /// Update Single Person by Id
-        /// Input - Person, Id
-        /// </summary>
+        [HttpGet("SearchByPerson/{searchVale}")]
+        public async Task<IEnumerable<PersonDTO>> SearchByPerson(string searchVale)
+        {
+            var result = await personDirector.SearchEntitiesAsync(searchVale, default).ConfigureAwait(false);
+            return result;
+        }
+
+        [HttpGet("SearchByBookId/{bookId}")]
+        public async Task<IEnumerable<PersonDTO>> SearchByBookId(string bookId)
+        {
+            var result = await personDirector.SearchEntitiesByForeignIdAsync(bookId, default).ConfigureAwait(false);
+            return result;
+        }
+
         [HttpPut("{personId}")]
         public async Task<long> Put(string personId, PersonDTO person)
         {
@@ -44,22 +47,13 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return result;
         }
 
-        /// <summary>
-        /// Update Multiple Person
-        /// Input - Person(s)
-        /// TODO Update based on searchValue 
-        /// </summary>
-        [HttpPut("Many")]
-        public async Task<long> PutMany(string searchValue, IEnumerable<PersonDTO> persons)
-        {
-            var result = await personDirector.UpdateEntitiesAsync(searchValue, persons, default).ConfigureAwait(false);
-            return result;
-        }
+        //[HttpPut("Many")]
+        //public async Task<long> PutMany(IEnumerable<string> personsIds, IEnumerable<PersonDTO> persons)
+        //{
+        //    var result = await personDirector.UpdateEntitiesAsync(personsIds, persons, default).ConfigureAwait(false);
+        //    return result;
+        //}
 
-        /// <summary>
-        /// Create Single Person
-        /// Input - Person
-        /// </summary>
         [HttpPost]
         public async Task<PersonDTO> Post(PersonCreateDTO person)
         {
@@ -67,10 +61,6 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return personresult;
         }
 
-        /// <summary>
-        /// Create Multiple Person(s)
-        /// Input - Person(s)
-        /// </summary>
         [HttpPost("Many")]
         public async Task<IEnumerable<PersonDTO>> PostMany(IEnumerable<PersonCreateDTO> persons)
         {
@@ -78,10 +68,6 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return personresult;
         }
 
-        /// <summary>
-        /// Delete Single Person
-        /// Input - Id
-        /// </summary>
         [HttpDelete("{personId}")]
         public async Task<long> Delete(string personId)
         {
@@ -89,9 +75,6 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return result;
         }
 
-        /// <summary>
-        /// Delete Multiple Person(s)
-        /// </summary>
         [HttpDelete("Many")]
         public async Task<long> DeleteMany()
         {
@@ -99,9 +82,6 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return result;
         }
 
-        /// <summary>
-        /// Load and Create Multiple Person(s), Input - Static Collection
-        /// </summary>
         [HttpGet("LoadAllPersonForNewDatabase")]
         public async Task<IEnumerable<PersonDTO>> LoadAllPersonForNewDatabase()
         {

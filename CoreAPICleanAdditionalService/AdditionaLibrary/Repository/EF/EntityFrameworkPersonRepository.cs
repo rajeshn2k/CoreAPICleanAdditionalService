@@ -26,8 +26,11 @@ namespace Core.Library.Clean.AdditionalService
 
         public async Task<IEnumerable<Person>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
         {
-            return await FindAllAsync(person => person.category == searchValue, cancellationToken).ConfigureAwait(false);
+            searchValue = searchValue.ToLower();
+            return await FindAllAsync(person => person.category.ToLower().Contains(searchValue) || person.firstName.ToLower().Contains(searchValue)
+            || person.lastName.ToLower().Contains(searchValue), cancellationToken).ConfigureAwait(false);
         }
+
 
         public async Task<Person> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
         {
@@ -90,7 +93,24 @@ namespace Core.Library.Clean.AdditionalService
         {
             try
             {
-                return await UpdateAsync(person => person.Id == entityId, entity, cancellationToken).ConfigureAwait(false);
+                var entityToBeUpdated = await GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
+
+                if (entityToBeUpdated != null)
+                {
+                    entityToBeUpdated.dateCreated = DateTime.Now;
+                    entityToBeUpdated.dateOfBirth = entity.dateOfBirth;
+                    entityToBeUpdated.firstName = entity.firstName;
+                    entityToBeUpdated.lastName = entity.lastName;
+                    entityToBeUpdated.isPlaySports = entity.isPlaySports;
+                    entityToBeUpdated.category = entity.category;
+
+                    return await UpdateAsync(entityToBeUpdated, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    Console.WriteLine($"Unable to find entity in database {entity.Id}");
+                    return 0;
+                }
             }
             catch (Exception ex)
             {
@@ -99,17 +119,54 @@ namespace Core.Library.Clean.AdditionalService
             }
         }
 
-        public new async Task<long> UpdateManyAsync(IEnumerable<Person> entityies, CancellationToken cancellationToken)
+        public async Task<long> UpdateManyAsync(IEnumerable<string> entityIds, IEnumerable<Person> entityies, CancellationToken cancellationToken)
         {
             try
             {
-                return await base.UpdateManyAsync(entityies, cancellationToken).ConfigureAwait(false);
+                List<Person> entitiesToBeUpdated = new List<Person>();
+
+                foreach (var entityId in entityIds)
+                {
+                    var entity = entityies.Where(b => b.Id == entityId).FirstOrDefault();
+
+                    if (entity != null)
+                    {
+                        var entityToBeUpdated = await GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
+
+                        if (entityToBeUpdated != null)
+                        {
+                            entityToBeUpdated.dateCreated = DateTime.Now;
+                            entityToBeUpdated.dateOfBirth = entity.dateOfBirth;
+                            entityToBeUpdated.firstName = entity.firstName;
+                            entityToBeUpdated.lastName = entity.lastName;
+                            entityToBeUpdated.isPlaySports = entity.isPlaySports;
+                            entityToBeUpdated.category = entity.category;
+
+                            entitiesToBeUpdated.Add(entityToBeUpdated);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Unable to find entity in database {entity.Id}");
+                        }
+                    }
+                }
+
+                if (entitiesToBeUpdated.Count > 0)
+                {
+                    return await UpdateManyAsync(entitiesToBeUpdated, cancellationToken).ConfigureAwait(false);
+                }
+                return 0;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"An error occurred while creating entities {string.Join(",", entityies.Select(b => b.Id))}: {ex.Message}");
                 return 0;
             }
+        }
+
+        public Task<IEnumerable<Person>> SearchEntitiesByForeignIdAsync(string foreignId, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException("THIS IS NOT REQUIRED");
         }
     }
 }
