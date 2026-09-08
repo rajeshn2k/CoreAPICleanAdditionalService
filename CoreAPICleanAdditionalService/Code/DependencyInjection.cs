@@ -29,10 +29,20 @@ namespace Core.API.Clean.AdditionalService
         {
             // Add Entity Framework + SQLite
 
+            //services.AddDbContext<SqlDataBaseDataContext>(options =>
+            //   options.UseSqlite(
+            //       configuration.GetConnectionString("SqliteDBContext")
+            //   ));
+
             services.AddDbContext<SqlDataBaseDataContext>(options =>
-               options.UseSqlite(
-                   configuration.GetConnectionString("SqliteDBContext")
-               ));
+            {
+                options.UseSqlite(configuration.GetConnectionString("SqliteDBContext"));
+
+                options.EnableDetailedErrors();
+                options.EnableSensitiveDataLogging();
+
+                options.LogTo(Console.WriteLine, LogLevel.Information);
+            });
 
             services.AddScoped<DbContext>(sp => sp.GetRequiredService<SqlDataBaseDataContext>());
 

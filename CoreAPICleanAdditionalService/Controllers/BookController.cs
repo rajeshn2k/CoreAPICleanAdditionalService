@@ -23,6 +23,10 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return result;
         }
 
+        /// <summary>
+        /// SearchByBook.
+        /// </summary>
+        /// <param name="searchVale">searchVale insludes CATEGORY and NAME only.</param>
         [HttpGet("SearchByBook/{searchVale}")]
         public async Task<IEnumerable<BookDTO>> SearchByBook(string searchVale)
         {

@@ -26,6 +26,10 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return result;
         }
 
+        /// <summary>
+        /// SearchByPerson.
+        /// </summary>
+        /// <param name="searchVale">searchVale insludes CATEGORY or FIRSTNAME or LASTNAME only.</param>
         [HttpGet("SearchByPerson/{searchVale}")]
         public async Task<IEnumerable<PersonDTO>> SearchByPerson(string searchVale)
         {
