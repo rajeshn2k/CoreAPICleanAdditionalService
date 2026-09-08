@@ -30,7 +30,7 @@ namespace Core.API.Clean.AdditionalService.Controllers
             return result;
         }
 
-        [HttpGet("SearchByPerson/{personId}")]
+        [HttpGet("SearchByPersonId/{personId}")]
         public async Task<IEnumerable<BookDTO>> SearchByPerson(string personId)
         {
             var result = await bookDirector.SearchEntitiesByForeignIdAsync(personId, default).ConfigureAwait(false);

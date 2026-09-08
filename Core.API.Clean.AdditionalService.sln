@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NOTES", "NOTES", "{02EA681E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.API.Clean.AdditionalService", "CoreAPICleanAdditionalService\Core.API.Clean.AdditionalService.csproj", "{42CAAF1B-B120-B369-B62D-406EA7BD75F0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Library.Clean.AdditionalService", "CoreLibraryCleanAdditionalService\Core.Library.Clean.AdditionalService.csproj", "{1ADB8301-82DB-66A3-E3BB-7C592449C296}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{42CAAF1B-B120-B369-B62D-406EA7BD75F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{42CAAF1B-B120-B369-B62D-406EA7BD75F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{42CAAF1B-B120-B369-B62D-406EA7BD75F0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1ADB8301-82DB-66A3-E3BB-7C592449C296}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1ADB8301-82DB-66A3-E3BB-7C592449C296}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1ADB8301-82DB-66A3-E3BB-7C592449C296}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1ADB8301-82DB-66A3-E3BB-7C592449C296}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
