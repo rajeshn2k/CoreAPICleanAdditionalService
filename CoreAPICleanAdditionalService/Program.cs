@@ -99,8 +99,8 @@ public static class Program
         // Create database if it does not exist
         dbContext.Database.EnsureCreated();
 
-        // Optional seed logic
-        // RetrySQLDB.Retry(dbContext);
-        // DatabaseInitializerPerson.InitializeSQLDB(dbContext);
+        //Data Seeding
+        //DatabaseInitializerPerson.Initialize(dbContext);
+        //DatabaseInitializerBook.Initialize(dbContext);
     }
 }

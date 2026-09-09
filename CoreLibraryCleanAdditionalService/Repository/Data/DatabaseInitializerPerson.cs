@@ -168,5 +168,17 @@
                 return persons;
             }
         }
+
+        public static void Initialize(SqlDataBaseDataContext context)
+        {
+            context.Database.EnsureCreated();
+
+            // Seed Persons
+            if (!context.Persons.Any())
+            {
+                context.Persons.AddRange(persons);
+                context.SaveChanges();
+            }
+        }
     }
 }

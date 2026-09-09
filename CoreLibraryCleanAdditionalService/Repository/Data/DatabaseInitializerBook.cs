@@ -89,5 +89,17 @@
                 return books;
             }
         }
+
+        public static void Initialize(SqlDataBaseDataContext context)
+        {
+            context.Database.EnsureCreated();
+
+            // Seed Persons
+            if (!context.Books.Any())
+            {
+                context.Books.AddRange(books);
+                context.SaveChanges();
+            }
+        }
     }
 }
