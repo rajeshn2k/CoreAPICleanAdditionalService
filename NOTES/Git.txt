@@ -1,0 +1,19 @@
+git clone https://github.com/RajeshNandhan/CoreAPIAdditional.git
+
+git status
+
+git add .
+
+git status
+
+git commit -m "first commit"
+
+git status
+
+git push origin master
+
+git add .
+
+git pull origin master
+
+git remote -v
