@@ -129,8 +129,39 @@ public class Person
 - No comprehensive test coverage
 - No API rate limiting
 - No monitoring and observability features
+- Inconsistent API response format
+- No circuit breaker pattern for external service resilience
+- No standardized error response model
+- No request/response correlation tracking
 
 ## Planned Enhancements
+
+### Phase 0: Standardized API Response Model
+**Objective**: Implement consistent API response format across all endpoints with proper error handling, correlation tracking, and standardized structure.
+
+**Requirements**:
+- Create unified API response wrapper model
+- Implement consistent error response format
+- Add request/response correlation ID tracking
+- Standardize HTTP status code usage
+- Add pagination metadata for list responses
+- Implement response envelope with success/error indicators
+- Add timestamp and request ID to all responses
+
+**Implementation Approach**:
+- Create `ApiResponse<T>` generic wrapper model in CoreLibrary/Models/
+- Create `ApiErrorResponse` model for error responses
+- Create `PaginationMetadata` model for paginated responses
+- Implement correlation ID middleware in API project
+- Update all controllers to use standardized response models
+- Create response wrapper helper methods
+- Add response filters for automatic wrapping
+
+**API Impact**:
+- Breaking change: Response structure changes for all endpoints
+- Clients will need to update to handle new response format
+- Provides consistent structure for all API responses
+- Better error handling and debugging capabilities
 
 ### Phase 1: Redis Distributed Cache
 **Objective**: Implement caching layer to improve performance and reduce database load.
@@ -223,6 +254,77 @@ public class Person
 - Configuration changes required
 - Migration guide for existing API consumers
 
+### Phase 4: Circuit Breaker Pattern Implementation
+**Objective**: Implement circuit breaker pattern for external service resilience and fault tolerance.
+
+**Requirements**:
+- Implement circuit breaker for external service calls (Redis, RabbitMQ, Auth0)
+- Add retry logic with exponential backoff
+- Implement fallback mechanisms when services are unavailable
+- Monitor circuit breaker state and health
+- Configure circuit breaker thresholds and timeouts
+- Add circuit breaker metrics and monitoring
+- Implement bulkhead pattern for resource isolation
+
+**Implementation Approach**:
+- Add `Polly` NuGet package for resilience patterns
+- Create circuit breaker policies for each external service
+- Implement retry policies with configurable backoff
+- Add fallback mechanisms for service failures
+- Create circuit breaker state monitoring
+- Configure circuit breaker in DependencyInjection.cs
+- Add health checks for circuit breaker states
+- Implement circuit breaker metrics dashboard
+
+**Circuit Breaker Targets**:
+- Redis cache service calls
+- RabbitMQ message publishing
+- Auth0 authentication token validation
+- External API calls (future integrations)
+
+**API Impact**:
+- No breaking changes to existing endpoints
+- Improved resilience and fault tolerance
+- Graceful degradation when external services fail
+- Better error handling and recovery
+
+### Phase 5: Rate Limiting Implementation
+**Objective**: Implement API rate limiting to prevent abuse, ensure fair usage, and protect system resources.
+
+**Requirements**:
+- Implement rate limiting per endpoint and per user
+- Support different rate limits for different user roles
+- Implement sliding window rate limiting algorithm
+- Add rate limit headers to API responses
+- Configure rate limit policies in configuration
+- Implement distributed rate limiting using Redis
+- Add rate limit exceeded error responses
+- Monitor rate limiting metrics and violations
+
+**Implementation Approach**:
+- Add `AspNetCoreRateLimit` NuGet package
+- Configure rate limiting rules in appsettings.json
+- Implement distributed rate limiting using Redis
+- Add rate limiting middleware to pipeline
+- Configure different limits for different endpoints
+- Implement per-user and per-IP rate limiting
+- Add rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, etc.)
+- Create rate limit exceeded exception handling
+- Add rate limiting metrics and monitoring
+
+**Rate Limiting Strategy**:
+- **Anonymous users**: 100 requests per minute
+- **Authenticated users**: 1000 requests per minute
+- **Admin users**: 5000 requests per minute
+- **Write operations**: Stricter limits than read operations
+- **Endpoint-specific limits**: Based on resource cost
+
+**API Impact**:
+- Non-breaking change with gradual rollout
+- Rate limit headers added to all responses
+- 429 Too Many Requests status for exceeded limits
+- Configuration-driven rate limit policies
+
 ## Non-Functional Requirements
 
 ### Performance
@@ -243,7 +345,9 @@ public class Person
 - SQL injection prevention (EF Core parameterized queries)
 - XSS prevention
 - CORS configuration
-- Rate limiting (future enhancement)
+- Rate limiting for abuse prevention
+- Circuit breaker for external service resilience
+- Request correlation for security auditing
 
 ### Reliability
 - Graceful error handling
@@ -281,6 +385,46 @@ public class Person
   "Messaging": {
     "ExchangeName": "additional-service",
     "QueuePrefix": "additional-service"
+  },
+  "ApiResponse": {
+    "IncludeTimestamp": true,
+    "IncludeRequestId": true,
+    "DetailedErrors": true
+  },
+  "CircuitBreaker": {
+    "Redis": {
+      "ExceptionsAllowedBeforeBreaking": 5,
+      "DurationOfBreakInSeconds": 30,
+      "RetryCount": 3
+    },
+    "RabbitMQ": {
+      "ExceptionsAllowedBeforeBreaking": 3,
+      "DurationOfBreakInSeconds": 60,
+      "RetryCount": 5
+    },
+    "Auth0": {
+      "ExceptionsAllowedBeforeBreaking": 5,
+      "DurationOfBreakInSeconds": 300,
+      "RetryCount": 2
+    }
+  },
+  "RateLimiting": {
+    "EnableRateLimiting": true,
+    "UseDistributedRateLimiting": true,
+    "Rules": {
+      "Anonymous": {
+        "PerMinute": 100,
+        "PerHour": 1000
+      },
+      "Authenticated": {
+        "PerMinute": 1000,
+        "PerHour": 10000
+      },
+      "Admin": {
+        "PerMinute": 5000,
+        "PerHour": 50000
+      }
+    }
   },
   "Kestrel": {
     "Endpoints": {
@@ -346,6 +490,15 @@ public class Person
 
 ## Success Criteria
 
+### Phase 0 (API Response Model)
+- [ ] Unified API response wrapper implemented
+- [ ] All endpoints using standardized response format
+- [ ] Correlation ID tracking working
+- [ ] Error responses standardized
+- [ ] Pagination metadata implemented
+- [ ] Response times unaffected by new wrapper
+- [ ] Client migration guide completed
+
 ### Phase 1 (Redis Cache)
 - [ ] Redis integration completed
 - [ ] Cache hit rate > 70% for frequently accessed data
@@ -368,18 +521,95 @@ public class Person
 - [ ] Token refresh logic implemented
 - [ ] Security audit passed
 
+### Phase 4 (Circuit Breaker)
+- [ ] Circuit breaker implemented for all external services
+- [ ] Retry logic with exponential backoff working
+- [ ] Fallback mechanisms functioning
+- [ ] Circuit breaker state monitoring in place
+- [ ] No cascading failures during service outages
+- [ ] Circuit breaker metrics dashboard operational
+
+### Phase 5 (Rate Limiting)
+- [ ] Rate limiting implemented for all endpoints
+- [ ] Distributed rate limiting using Redis working
+- [ ] Per-user and per-IP rate limiting functional
+- [ ] Rate limit headers properly set
+- [ ] 429 responses for exceeded limits
+- [ ] Rate limiting metrics and monitoring in place
+
 ## Migration Strategy
 
 ### From Current to Enhanced System
-1. **Phase 1**: Add Redis cache without breaking changes
-2. **Phase 2**: Add RabbitMQ messaging without breaking changes
-3. **Phase 3**: Add Auth0 authentication (breaking change - plan API versioning)
+1. **Phase 0**: Implement standardized API response model (breaking change - plan API versioning)
+2. **Phase 1**: Add Redis cache without breaking changes
+3. **Phase 2**: Add RabbitMQ messaging without breaking changes
+4. **Phase 3**: Add Auth0 authentication (breaking change - plan API versioning)
+5. **Phase 4**: Add circuit breaker pattern without breaking changes
+6. **Phase 5**: Add rate limiting without breaking changes
 
 ### API Versioning Strategy
-- Maintain v1 API without authentication during transition
-- Introduce v2 API with authentication
-- Deprecate v1 after migration period
+- Maintain v1 API without response wrapper during transition
+- Introduce v2 API with standardized response model
+- Maintain v1 without authentication during Phase 0 transition
+- Introduce v3 API with authentication in Phase 3
+- Deprecate previous versions after migration periods
 - Provide migration guide for API consumers
+
+### API Response Model Structure
+
+#### Success Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": "123",
+    "bookName": "Sample Book",
+    "bookCategory": "Fiction",
+    "price": 29.99
+  },
+  "message": "Book retrieved successfully",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "requestId": "correlation-id-guid",
+  "pagination": {
+    "currentPage": 1,
+    "pageSize": 10,
+    "totalItems": 100,
+    "totalPages": 10
+  }
+}
+```
+
+#### Error Response
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BOOK_NOT_FOUND",
+    "message": "Book with ID 123 not found",
+    "details": "The requested book does not exist in the database",
+    "statusCode": 404
+  },
+  "timestamp": "2024-01-01T00:00:00Z",
+  "requestId": "correlation-id-guid",
+  "path": "/api/Book/123"
+}
+```
+
+#### Rate Limit Exceeded Response
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Rate limit exceeded",
+    "details": "Maximum 100 requests per minute allowed",
+    "statusCode": 429
+  },
+  "timestamp": "2024-01-01T00:00:00Z",
+  "requestId": "correlation-id-guid",
+  "retryAfter": 45
+}
+```
 
 ## Documentation Requirements
 
@@ -402,8 +632,10 @@ public class Person
 ### Logging
 - Structured logging with Serilog
 - Log levels: Debug, Information, Warning, Error, Critical
-- Request/response logging
+- Request/response logging with correlation IDs
 - Error tracking and alerting
+- Circuit breaker state changes logging
+- Rate limiting violations logging
 
 ### Metrics
 - API response times
@@ -411,12 +643,18 @@ public class Person
 - Database query performance
 - Message publishing rates
 - Authentication success/failure rates
+- Circuit breaker state transitions
+- Circuit breaker success/failure rates
+- Rate limiting violations per endpoint
+- Rate limiting violations per user/IP
 
 ### Health Checks
 - Database connectivity
 - Redis connectivity
 - RabbitMQ connectivity
 - Auth0 connectivity
+- Circuit breaker states
+- Rate limiting service health
 - Application health endpoint
 
 ---

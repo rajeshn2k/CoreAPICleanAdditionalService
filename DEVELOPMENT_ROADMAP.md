@@ -4,7 +4,146 @@ This roadmap outlines the iterative development plan for enhancing the .NET API 
 
 ## Overview
 
-The development will proceed in three distinct phases, each building upon the previous implementation while maintaining Clean Architecture principles and avoiding breaking changes where possible.
+The development will proceed in six distinct phases, each building upon the previous implementation while maintaining Clean Architecture principles and avoiding breaking changes where possible. The new phases address API response standardization, resilience patterns, and security enhancements.
+
+---
+
+## Phase 0: Standardized API Response Model
+
+### Objectives
+- Implement consistent API response format across all endpoints
+- Add proper error handling and standardized error responses
+- Implement request/response correlation tracking
+- Add pagination metadata for list responses
+- Establish foundation for future monitoring and debugging
+
+### Prerequisites
+- Project currently builds and runs successfully
+- Understanding of current API response patterns
+- API versioning strategy defined (for breaking changes)
+
+### Implementation Steps
+
+#### 0.1 Response Model Design
+- [ ] Create `ApiResponse<T>` generic wrapper model in CoreLibrary/Models/
+- [ ] Create `ApiErrorResponse` model for error responses
+- [ ] Create `PaginationMetadata` model for paginated responses
+- [ ] Define error code constants and enumerations
+- [ ] Create response model unit tests
+
+#### 0.2 Correlation Tracking
+- [ ] Create correlation ID middleware in API project
+- [ ] Implement request ID generation
+- [ ] Add correlation ID to response headers
+- [ ] Implement request-scoped correlation context
+- [ ] Add correlation ID to all log entries
+
+#### 0.3 Controller Updates
+- [ ] Update all controllers to use `ApiResponse<T>` wrapper
+- [ ] Create response wrapper helper methods
+- [ ] Update error handling to use `ApiErrorResponse`
+- [ ] Add pagination metadata to list endpoints
+- [ ] Update XML documentation for changed responses
+
+#### 0.4 Response Filters and Middleware
+- [ ] Create response filter for automatic wrapping
+- [ ] Implement exception handling middleware
+- [ ] Add response formatting middleware
+- [ ] Configure response filtering pipeline
+- [ ] Add response compression middleware
+
+#### 0.5 API Versioning
+- [ ] Implement API versioning in controllers
+- [ ] Create v1 endpoints (legacy format)
+- [ ] Create v2 endpoints (new response format)
+- [ ] Configure versioning strategy
+- [ ] Add deprecation headers to v1 endpoints
+
+#### 0.6 Testing and Validation
+- [ ] Test all endpoints with new response format
+- [ ] Verify correlation ID tracking
+- [ ] Test error response handling
+- [ ] Validate pagination metadata
+- [ ] Performance testing for response wrapping overhead
+- [ ] Client migration testing
+
+### Technical Specifications
+
+#### Response Wrapper Model
+```csharp
+public class ApiResponse<T>
+{
+    public bool Success { get; set; }
+    public T Data { get; set; }
+    public string Message { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string RequestId { get; set; }
+    public PaginationMetadata Pagination { get; set; }
+}
+
+public class ApiErrorResponse
+{
+    public bool Success { get; set; }
+    public ErrorDetail Error { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string RequestId { get; set; }
+    public string Path { get; set; }
+}
+```
+
+#### Error Codes
+```csharp
+public static class ErrorCodes
+{
+    public const string VALIDATION_ERROR = "VALIDATION_ERROR";
+    public const string NOT_FOUND = "NOT_FOUND";
+    public const string UNAUTHORIZED = "UNAUTHORIZED";
+    public const string FORBIDDEN = "FORBIDDEN";
+    public const string INTERNAL_ERROR = "INTERNAL_ERROR";
+    public const string RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED";
+    public const string SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE";
+}
+```
+
+#### Correlation ID Middleware
+```csharp
+public class CorrelationIdMiddleware
+{
+    private readonly RequestDelegate _next;
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault() 
+                          ?? Guid.NewGuid().ToString();
+        
+        context.Items["CorrelationId"] = correlationId;
+        context.Response.Headers["X-Correlation-ID"] = correlationId;
+        
+        await _next(context);
+    }
+}
+```
+
+### Success Criteria
+- [ ] All endpoints using standardized response format
+- [ ] Correlation ID tracking working across all requests
+- [ ] Error responses consistent and informative
+- [ ] Pagination metadata accurate and complete
+- [ ] Response wrapping overhead < 5ms
+- [ ] API versioning functional
+- [ ] Migration guide completed
+
+### Dependencies
+- No external dependencies required
+- Breaking change: Response structure changes
+- Requires API versioning strategy
+- Client migration required
+
+### Estimated Effort
+- **Development**: 3-4 days
+- **Testing**: 2-3 days
+- **Documentation**: 1 day
+- **Client Migration Support**: 1-2 days
 
 ---
 
@@ -375,25 +514,337 @@ Since this phase introduces breaking changes (authentication required), implemen
 
 ---
 
+## Phase 4: Circuit Breaker Pattern Implementation
+
+### Objectives
+- Implement circuit breaker pattern for external service resilience
+- Add retry logic with exponential backoff
+- Implement fallback mechanisms for service failures
+- Monitor circuit breaker state and health
+- Prevent cascading failures during service outages
+
+### Prerequisites
+- Phases 0-3 completed
+- Understanding of resilience patterns
+- External services identified (Redis, RabbitMQ, Auth0)
+
+### Implementation Steps
+
+#### 4.1 Infrastructure Setup
+- [ ] Add `Polly` NuGet package to API project
+- [ ] Add `Microsoft.Extensions.Http.Polly` NuGet package
+- [ ] Create circuit breaker configuration section in appsettings.json
+- [ ] Define circuit breaker policies for each external service
+- [ ] Set up circuit breaker state monitoring
+
+#### 4.2 Circuit Breaker Policies
+- [ ] Create Redis circuit breaker policy
+- [ ] Create RabbitMQ circuit breaker policy
+- [ ] Create Auth0 circuit breaker policy
+- [ ] Implement retry policies with exponential backoff
+- [ ] Configure timeout policies for each service
+- [ ] Define fallback strategies for each service
+
+#### 4.3 Service Integration
+- [ ] Wrap Redis cache service with circuit breaker
+- [ ] Wrap RabbitMQ message publisher with circuit breaker
+- [ ] Wrap Auth0 authentication with circuit breaker
+- [ ] Implement fallback logic for each service
+- [ ] Add circuit breaker state logging
+- [ ] Implement circuit breaker event handlers
+
+#### 4.4 Monitoring and Health Checks
+- [ ] Add circuit breaker health checks
+- [ ] Implement circuit breaker state monitoring
+- [ ] Create circuit breaker metrics collection
+- [ ] Add circuit breaker dashboard endpoints
+- [ ] Implement circuit breaker alerting
+- [ ] Add circuit breaker state to health responses
+
+#### 4.5 Configuration and Dependency Injection
+- [ ] Register circuit breaker policies in DependencyInjection.cs
+- [ ] Configure circuit breaker settings per service
+- [ ] Add circuit breaker configuration validation
+- [ ] Implement circuit breaker policy management
+- [ ] Add circuit breaker configuration reload support
+
+#### 4.6 Testing and Validation
+- [ ] Test circuit breaker state transitions
+- [ ] Test retry logic with exponential backoff
+- [ ] Test fallback mechanisms
+- [ ] Test circuit breaker recovery
+- [ ] Test cascading failure prevention
+- [ ] Performance testing with circuit breaker
+
+### Technical Specifications
+
+#### Circuit Breaker Configuration
+```json
+{
+  "CircuitBreaker": {
+    "Redis": {
+      "ExceptionsAllowedBeforeBreaking": 5,
+      "DurationOfBreakInSeconds": 30,
+      "RetryCount": 3,
+      "RetryDelayInSeconds": 1,
+      "TimeoutInSeconds": 5
+    },
+    "RabbitMQ": {
+      "ExceptionsAllowedBeforeBreaking": 3,
+      "DurationOfBreakInSeconds": 60,
+      "RetryCount": 5,
+      "RetryDelayInSeconds": 2,
+      "TimeoutInSeconds": 10
+    },
+    "Auth0": {
+      "ExceptionsAllowedBeforeBreaking": 5,
+      "DurationOfBreakInSeconds": 300,
+      "RetryCount": 2,
+      "RetryDelayInSeconds": 5,
+      "TimeoutInSeconds": 15
+    }
+  }
+}
+```
+
+#### Circuit Breaker Policy Example
+```csharp
+public static IAsyncPolicy<HttpResponseMessage> CreateCircuitBreakerPolicy()
+{
+    return HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .OrResult(r => !r.IsSuccessStatusCode)
+        .CircuitBreakerAsync(
+            exceptionsAllowedBeforeBreaking: 5,
+            durationOfBreak: TimeSpan.FromSeconds(30),
+            onBreak: (exception, duration) => 
+            {
+                // Log circuit breaker open
+            },
+            onReset: () => 
+            {
+                // Log circuit breaker reset
+            },
+            onHalfOpen: () => 
+            {
+                // Log circuit breaker half-open
+            });
+}
+```
+
+#### Circuit Breaker States
+- **Closed**: Normal operation, requests pass through
+- **Open**: Circuit is tripped, requests fail fast
+- **Half-Open**: Testing if service has recovered
+
+### Success Criteria
+- [ ] Circuit breaker implemented for all external services
+- [ ] Retry logic with exponential backoff working
+- [ ] Fallback mechanisms functioning correctly
+- [ ] Circuit breaker state monitoring operational
+- [ ] No cascading failures during service outages
+- [ ] Circuit breaker metrics dashboard functional
+- [ ] Circuit breaker recovery working properly
+
+### Dependencies
+- Requires Polly NuGet package
+- No breaking changes to existing API
+- Depends on Phases 1-3 (Redis, RabbitMQ, Auth0)
+- Can be developed in parallel with Phase 5
+
+### Estimated Effort
+- **Development**: 4-5 days
+- **Testing**: 3-4 days
+- **Documentation**: 1 day
+- **Monitoring Setup**: 1-2 days
+
+---
+
+## Phase 5: Rate Limiting Implementation
+
+### Objectives
+- Implement API rate limiting to prevent abuse
+- Ensure fair usage across all users
+- Protect system resources from overload
+- Support different rate limits for different user roles
+- Implement distributed rate limiting using Redis
+
+### Prerequisites
+- Phase 1 (Redis) completed for distributed rate limiting
+- Phase 0 (API Response Model) completed for rate limit headers
+- Understanding of rate limiting algorithms
+
+### Implementation Steps
+
+#### 5.1 Infrastructure Setup
+- [ ] Add `AspNetCoreRateLimit` NuGet package to API project
+- [ ] Create rate limiting configuration section in appsettings.json
+- [ ] Define rate limiting rules per user role
+- [ ] Configure rate limiting algorithms (sliding window)
+- [ ] Set up distributed rate limiting with Redis
+
+#### 5.2 Rate Limiting Rules
+- [ ] Define rate limits for anonymous users
+- [ ] Define rate limits for authenticated users
+- [ ] Define rate limits for admin users
+- [ ] Configure endpoint-specific rate limits
+- [ ] Implement stricter limits for write operations
+- [ ] Configure rate limit periods (minute, hour, day)
+
+#### 5.3 Rate Limiting Middleware
+- [ ] Add rate limiting middleware to pipeline
+- [ ] Configure rate limiting policies
+- [ ] Implement IP-based rate limiting
+- [ ] Implement user-based rate limiting
+- [ ] Add rate limiting exception handling
+- [ ] Configure rate limiting order of precedence
+
+#### 5.4 Response Headers and Error Handling
+- [ ] Add rate limit headers to responses
+- [ ] Implement rate limit exceeded error responses
+- [ ] Add retry-after header for exceeded limits
+- [ ] Configure rate limit error format
+- [ ] Add rate limit warning headers
+- [ ] Implement rate limit notification system
+
+#### 5.5 Distributed Rate Limiting
+- [ ] Configure Redis for distributed rate limiting
+- [ ] Implement rate limit key generation
+- [ ] Add rate limit synchronization across instances
+- [ ] Configure rate limit expiration in Redis
+- [ ] Implement rate limit fallback when Redis unavailable
+
+#### 5.6 Monitoring and Metrics
+- [ ] Add rate limiting metrics collection
+- [ ] Implement rate limit violation logging
+- [ ] Create rate limiting dashboard
+- [ ] Add rate limiting alerting
+- [ ] Implement rate limiting analytics
+- [ ] Add rate limiting to health checks
+
+#### 5.7 Testing and Validation
+- [ ] Test rate limiting per user role
+- [ ] Test rate limiting per endpoint
+- [ ] Test distributed rate limiting
+- [ ] Test rate limit headers
+- [ ] Test rate limit error responses
+- [ ] Performance testing with rate limiting
+
+### Technical Specifications
+
+#### Rate Limiting Configuration
+```json
+{
+  "RateLimiting": {
+    "EnableRateLimiting": true,
+    "UseDistributedRateLimiting": true,
+    "StackExchangeRedisOptions": {
+      "ConnectionMultiplexer": "localhost:6379"
+    },
+    "GeneralRules": {
+      "Anonymous": {
+        "PerMinute": 100,
+        "PerHour": 1000,
+        "PerDay": 10000
+      },
+      "Authenticated": {
+        "PerMinute": 1000,
+        "PerHour": 10000,
+        "PerDay": 100000
+      },
+      "Admin": {
+        "PerMinute": 5000,
+        "PerHour": 50000,
+        "PerDay": 500000
+      }
+    },
+    "EndpointRules": {
+      "Read": {
+        "Multiplier": 1.0
+      },
+      "Write": {
+        "Multiplier": 0.5
+      },
+      "Delete": {
+        "Multiplier": 0.2
+      }
+    }
+  }
+}
+```
+
+#### Rate Limit Headers
+```
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 950
+X-RateLimit-Reset: 1640995200
+X-RateLimit-Reset-After: 300
+X-RateLimit-Window: 60
+```
+
+#### Rate Limiting Algorithm
+- **Sliding Window Log**: Accurate but memory-intensive
+- **Sliding Window Counter**: Good balance of accuracy and memory
+- **Fixed Window**: Simple but can have burst issues
+- **Token Bucket**: Good for rate limiting with bursts
+
+### Success Criteria
+- [ ] Rate limiting implemented for all endpoints
+- [ ] Distributed rate limiting using Redis working
+- [ ] Per-user and per-IP rate limiting functional
+- [ ] Rate limit headers properly set
+- [ ] 429 responses for exceeded limits
+- [ ] Rate limiting metrics and monitoring in place
+- [ ] Rate limiting performance impact < 2ms
+
+### Dependencies
+- Requires AspNetCoreRateLimit NuGet package
+- Requires Redis for distributed rate limiting
+- No breaking changes to existing API
+- Depends on Phase 1 (Redis) and Phase 0 (Response Model)
+
+### Estimated Effort
+- **Development**: 3-4 days
+- **Testing**: 2-3 days
+- **Documentation**: 1 day
+- **Monitoring Setup**: 1 day
+
+---
+
 ## Implementation Order and Dependencies
 
 ### Recommended Sequence
-1. **Phase 1 (Redis)**: Start here as it provides immediate performance benefits
-2. **Phase 2 (RabbitMQ)**: Build upon Phase 1, adds messaging capabilities
-3. **Phase 3 (Auth0)**: Implement last as it introduces breaking changes
+1. **Phase 0 (API Response Model)**: Start here as foundation for all other phases
+2. **Phase 1 (Redis)**: Build upon Phase 0, provides immediate performance benefits
+3. **Phase 2 (RabbitMQ)**: Build upon Phase 1, adds messaging capabilities
+4. **Phase 3 (Auth0)**: Implement after messaging infrastructure is ready
+5. **Phase 4 (Circuit Breaker)**: Implement after external services are integrated
+6. **Phase 5 (Rate Limiting)**: Implement last as it depends on Redis and response model
 
 ### Parallel Development Opportunities
-- Phase 1 and Phase 2 can be developed in parallel after initial setup
-- Phase 3 should be developed sequentially after Phases 1 and 2
+- Phase 1 and Phase 2 can be developed in parallel after Phase 0
+- Phase 4 and Phase 5 can be developed in parallel after Phases 1-3
+- Phase 3 should be developed sequentially after Phases 1-2
 
 ### Integration Points
 - All phases integrate through the Director layer
 - Dependency injection configuration consolidates in DependencyInjection.cs
 - Configuration management unified in appsettings.json
+- Response model used across all phases
+- Circuit breaker wraps external service calls
+- Rate limiting applies to all API endpoints
 
 ---
 
 ## Testing Strategy
+
+### Phase 0 Testing
+- Unit tests for response models
+- Integration tests for correlation tracking
+- API versioning tests
+- Response wrapper performance tests
+- Error response validation tests
+- Pagination metadata tests
 
 ### Phase 1 Testing
 - Unit tests for cache service
@@ -412,6 +863,21 @@ Since this phase introduces breaking changes (authentication required), implemen
 - Authorization policy tests
 - Security penetration testing
 - Token refresh and expiration tests
+
+### Phase 4 Testing
+- Circuit breaker state transition tests
+- Retry logic tests with exponential backoff
+- Fallback mechanism tests
+- Cascading failure prevention tests
+- Circuit breaker recovery tests
+
+### Phase 5 Testing
+- Rate limiting per user role tests
+- Rate limiting per endpoint tests
+- Distributed rate limiting tests
+- Rate limit header validation tests
+- Rate limit error response tests
+- Performance tests with rate limiting
 
 ---
 
@@ -503,15 +969,18 @@ Since this phase introduces breaking changes (authentication required), implemen
 ## Timeline Estimate
 
 ### Total Project Duration
+- **Phase 0**: 5-7 days
 - **Phase 1**: 3-4 days
 - **Phase 2**: 5-7 days
 - **Phase 3**: 7-10 days
-- **Integration and Testing**: 3-5 days
-- **Documentation**: 2-3 days
-- **Total**: 20-29 days (4-6 weeks)
+- **Phase 4**: 5-7 days
+- **Phase 5**: 4-6 days
+- **Integration and Testing**: 5-7 days
+- **Documentation**: 3-4 days
+- **Total**: 37-52 days (7-10 weeks)
 
 ### Critical Path
-Phase 3 (Auth0) is on the critical path due to breaking changes and security requirements.
+Phase 0 (API Response Model) and Phase 3 (Auth0) are on the critical path due to breaking changes and foundational requirements.
 
 ---
 

@@ -7,6 +7,8 @@ This document provides comprehensive coding standards, development practices, an
 - [Project Structure Guidelines](#project-structure-guidelines)
 - [Entity Framework Guidelines](#entity-framework-guidelines)
 - [API Development Guidelines](#api-development-guidelines)
+- [Resilience Patterns Guidelines](#resilience-patterns-guidelines)
+- [Rate Limiting Guidelines](#rate-limiting-guidelines)
 - [Testing Guidelines](#testing-guidelines)
 - [Git Workflow](#git-workflow)
 - [Documentation Standards](#documentation-standards)
@@ -244,6 +246,77 @@ dotnet ef database update PreviousMigration --project CoreLibraryCleanAdditional
 
 ## API Development Guidelines
 
+### API Response Model Guidelines
+
+#### Standardized Response Structure
+- Always use `ApiResponse<T>` wrapper for successful responses
+- Use `ApiErrorResponse` for error responses
+- Include correlation ID in all responses
+- Add timestamp and request ID to all responses
+- Include pagination metadata for list responses
+
+#### Response Wrapper Implementation
+```csharp
+// Success response
+public async Task<ActionResult<ApiResponse<BookDTO>>> GetBook(string id)
+{
+    var book = await _bookDirector.GetEntityByIdAsync(id, default);
+    var response = new ApiResponse<BookDTO>
+    {
+        Success = true,
+        Data = book,
+        Message = "Book retrieved successfully",
+        Timestamp = DateTime.UtcNow,
+        RequestId = HttpContext.Items["CorrelationId"]?.ToString()
+    };
+    return Ok(response);
+}
+
+// Error response
+public async Task<ActionResult<ApiResponse<BookDTO>>> GetBook(string id)
+{
+    try
+    {
+        var book = await _bookDirector.GetEntityByIdAsync(id, default);
+        if (book == null)
+        {
+            var errorResponse = new ApiErrorResponse
+            {
+                Success = false,
+                Error = new ErrorDetail
+                {
+                    Code = ErrorCodes.NOT_FOUND,
+                    Message = "Book not found",
+                    StatusCode = 404
+                },
+                Timestamp = DateTime.UtcNow,
+                RequestId = HttpContext.Items["CorrelationId"]?.ToString(),
+                Path = $"/api/Book/{id}"
+            };
+            return NotFound(errorResponse);
+        }
+        // ... success case
+    }
+    catch (Exception ex)
+    {
+        // ... error handling
+    }
+}
+```
+
+#### Correlation ID Guidelines
+- Always include correlation ID in log entries
+- Pass correlation ID through the request pipeline
+- Include correlation ID in all external service calls
+- Use correlation ID for debugging and tracing
+
+#### Pagination Guidelines
+- Use `PaginationMetadata` for list responses
+- Include pagination information in response headers
+- Support pagination parameters (page, pageSize)
+- Validate pagination parameters
+- Return reasonable default page sizes
+
 ### Controller Guidelines
 - Keep controllers thin - delegate to Directors
 - Use appropriate HTTP verbs and status codes
@@ -328,6 +401,229 @@ public class BookCreateDTO
 - Return validation errors with proper structure
 - Validate at the earliest appropriate layer
 - Use fluent validation if needed
+
+---
+
+## Resilience Patterns Guidelines
+
+### Circuit Breaker Implementation
+- Use circuit breaker pattern for all external service calls
+- Implement appropriate circuit breaker thresholds per service
+- Add retry logic with exponential backoff
+- Implement fallback mechanisms for service failures
+- Monitor circuit breaker states and transitions
+- Log circuit breaker state changes for debugging
+
+#### Circuit Breaker Configuration
+```csharp
+// Configure circuit breaker for Redis
+var redisCircuitBreaker = Policy
+    .Handle<RedisException>()
+    .CircuitBreakerAsync(
+        exceptionsAllowedBeforeBreaking: 5,
+        durationOfBreak: TimeSpan.FromSeconds(30),
+        onBreak: (exception, duration) => 
+        {
+            _logger.LogWarning(exception, "Redis circuit breaker opened for {Duration}", duration);
+        },
+        onReset: () => 
+        {
+            _logger.LogInformation("Redis circuit breaker reset");
+        },
+        onHalfOpen: () => 
+        {
+            _logger.LogInformation("Redis circuit breaker half-open");
+        });
+```
+
+#### Retry Policy Implementation
+```csharp
+// Implement retry with exponential backoff
+var retryPolicy = Policy
+    .Handle<Exception>()
+    .WaitAndRetryAsync(
+        retryCount: 3,
+        sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+        onRetry: (exception, timeSpan, retryCount, context) =>
+        {
+            _logger.LogWarning(exception, "Retry {RetryCount} after {Delay}s", retryCount, timeSpan.TotalSeconds);
+        });
+```
+
+#### Fallback Strategy
+```csharp
+// Implement fallback for service failures
+var fallbackPolicy = Policy<HttpResponseMessage>
+    .Handle<Exception>()
+    .FallbackAsync(
+        fallbackValue: CreateFallbackResponse(),
+        onFallbackAsync: async (exception, context) =>
+        {
+            _logger.LogError(exception, "Service call failed, using fallback");
+            await Task.CompletedTask;
+        });
+```
+
+### External Service Resilience
+- Wrap all external service calls with circuit breakers
+- Implement timeout policies for external calls
+- Use bulkhead pattern for resource isolation
+- Implement service health checks
+- Add circuit breaker state monitoring
+- Provide graceful degradation when services fail
+
+#### Service Integration Example
+```csharp
+public class ResilientCacheService : ICacheService
+{
+    private readonly ICacheService _innerCacheService;
+    private readonly IAsyncPolicy _circuitBreakerPolicy;
+    private readonly IAsyncPolicy _retryPolicy;
+    private readonly ILogger<ResilientCacheService> _logger;
+
+    public async Task<T> GetAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _circuitBreakerPolicy
+                .WrapAsync(_retryPolicy)
+                .ExecuteAsync(async () => 
+                {
+                    return await _innerCacheService.GetAsync<T>(key, cancellationToken);
+                });
+        }
+        catch (BrokenCircuitException)
+        {
+            _logger.LogWarning("Circuit breaker is open, using fallback");
+            return default(T);
+        }
+    }
+}
+```
+
+### Resilience Testing
+- Test circuit breaker state transitions
+- Test retry logic with various failure scenarios
+- Test fallback mechanisms
+- Test cascading failure prevention
+- Test circuit breaker recovery
+- Load test resilience patterns
+
+---
+
+## Rate Limiting Guidelines
+
+### Rate Limiting Implementation
+- Implement rate limiting at middleware level
+- Use distributed rate limiting with Redis for multi-instance deployments
+- Configure different rate limits per user role
+- Add rate limit headers to all responses
+- Return 429 status code when limits are exceeded
+- Log rate limiting violations for monitoring
+
+#### Rate Limiting Configuration
+```csharp
+// Configure rate limiting rules
+services.AddRateLimiter(options =>
+{
+    options.AddPolicy("AnonymousPolicy", context =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString(),
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1),
+                SegmentsPerWindow = 2
+            }));
+
+    options.AddPolicy("AuthenticatedPolicy", context =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: context.User.FindFirst("sub")?.Value ?? "anonymous",
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 1000,
+                Window = TimeSpan.FromMinutes(1),
+                SegmentsPerWindow = 2
+            }));
+});
+```
+
+#### Rate Limiting Middleware
+```csharp
+public class RateLimitingMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly IRateLimiter _rateLimiter;
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var permit = await _rateLimiter.AttemptAcquireAsync(context);
+        
+        if (permit.IsAcquired)
+        {
+            using (permit)
+            {
+                await _next(context);
+            }
+        }
+        else
+        {
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            await context.Response.WriteAsync("Rate limit exceeded");
+        }
+    }
+}
+```
+
+#### Rate Limit Headers
+- Add `X-RateLimit-Limit`: Maximum requests allowed
+- Add `X-RateLimit-Remaining`: Remaining requests
+- Add `X-RateLimit-Reset`: When the limit resets
+- Add `X-RateLimit-Reset-After`: Seconds until reset
+- Add `Retry-After`: Seconds to wait before retry
+
+### Rate Limiting Best Practices
+- Use sliding window algorithm for accurate rate limiting
+- Implement different limits for different endpoint types
+- Consider resource cost when setting limits
+- Provide clear error messages when limits are exceeded
+- Monitor rate limiting violations and patterns
+- Adjust rate limits based on usage patterns
+
+#### Distributed Rate Limiting with Redis
+```csharp
+public class RedisRateLimiter
+{
+    private readonly IConnectionMultiplexer _redis;
+
+    public async Task<bool> IsAllowedAsync(string key, int limit, TimeSpan period)
+    {
+        var db = _redis.GetDatabase();
+        var luaScript = @"
+            local current = redis.call('INCR', KEYS[1])
+            if tonumber(current) == 1 then
+                redis.call('EXPIRE', KEYS[1], ARGV[1])
+            end
+            return tonumber(current) <= tonumber(ARGV[2])
+        ";
+        
+        var result = await db.ScriptEvaluateAsync(
+            luaScript,
+            new RedisKey[] { key },
+            new RedisValue[] { period.TotalSeconds, limit });
+        
+        return (bool)result;
+    }
+}
+```
+
+### Rate Limiting Testing
+- Test rate limiting per user role
+- Test rate limiting per endpoint
+- Test distributed rate limiting across instances
+- Test rate limit header accuracy
+- Test rate limit exceeded responses
+- Performance test rate limiting overhead
 
 ---
 

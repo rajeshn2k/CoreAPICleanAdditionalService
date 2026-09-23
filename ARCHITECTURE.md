@@ -123,7 +123,7 @@ HTTP Response ← Controller ← Director ← Result
 
 ### High-Level Overview
 
-The target architecture maintains Clean Architecture principles while adding cross-cutting concerns for caching, messaging, and security:
+The target architecture maintains Clean Architecture principles while adding cross-cutting concerns for caching, messaging, security, resilience, and standardized responses:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -131,7 +131,26 @@ The target architecture maintains Clean Architecture principles while adding cro
 │  ┌──────────────────┐  ┌──────────────────┐  ┌─────────────┐│
 │  │  BookController  │  │ PersonController │  │PingController││
 │  │   [Authorize]    │  │   [Authorize]    │  │             ││
+│  │   [RateLimit]   │  │   [RateLimit]    │  │             ││
 │  └──────────────────┘  └──────────────────┘  └─────────────┘│
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│              Response & Correlation Layer                    │
+│  ┌──────────────────────────────────────────┐              │
+│  │   ApiResponse<T> Wrapper                 │              │
+│  │   Correlation ID Middleware              │              │
+│  │   Error Handling Middleware               │              │
+│  │   Pagination Metadata                     │              │
+│  └──────────────────────────────────────────┘              │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│            Rate Limiting & Resilience Layer                  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────┐│
+│  │  Rate Limiting   │  │  Circuit Breaker │  │ Retry      ││
+│  │  Middleware      │  │  Policies        │  │ Policies   ││
+│  └──────────────────┘  └──────────────────┘  └───────────┘│
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -156,6 +175,7 @@ The target architecture maintains Clean Architecture principles while adding cro
 │  ┌──────────────────┐  ┌──────────────────┐  ┌───────────┐│
 │  │  Redis Cache     │  │  RabbitMQ        │  │ Serilog    ││
 │  │  Service         │  │  Publisher       │  │ Logging    ││
+│  │  (Circuit Brkr)  │  │  (Circuit Brkr)  │  │            ││
 │  └──────────────────┘  └──────────────────┘  └───────────┘│
 └─────────────────────────────────────────────────────────────┘
                               ↓
@@ -257,6 +277,8 @@ HTTP Response ← Response ← Result
 | Cache | Redis | StackExchange.Redis |
 | Messaging | RabbitMQ | RabbitMQ.Client |
 | Authentication | Auth0 | OAuth2/OIDC |
+| Resilience | Polly | Latest |
+| Rate Limiting | AspNetCoreRateLimit | Latest |
 | Logging | Serilog | 4.4.0 |
 | API Documentation | Swashbuckle | 10.2.3 |
 | JSON | Newtonsoft.Json | 13.0.4 |
@@ -381,6 +403,225 @@ public interface IUserContextService
     IEnumerable<string> Permissions { get; }
     bool IsInRole(string role);
     bool HasPermission(string permission);
+}
+```
+
+### Response Model Architecture
+
+#### Response Wrapper Design
+```csharp
+public class ApiResponse<T>
+{
+    public bool Success { get; set; }
+    public T Data { get; set; }
+    public string Message { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string RequestId { get; set; }
+    public PaginationMetadata Pagination { get; set; }
+}
+
+public class ApiErrorResponse
+{
+    public bool Success { get; set; }
+    public ErrorDetail Error { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string RequestId { get; set; }
+    public string Path { get; set; }
+}
+
+public class PaginationMetadata
+{
+    public int CurrentPage { get; set; }
+    public int PageSize { get; set; }
+    public int TotalItems { get; set; }
+    public int TotalPages { get; set; }
+    public bool HasPrevious { get; set; }
+    public bool HasNext { get; set; }
+}
+```
+
+#### Correlation ID Middleware
+```csharp
+public class CorrelationIdMiddleware
+{
+    private readonly RequestDelegate _next;
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault() 
+                          ?? Guid.NewGuid().ToString();
+        
+        context.Items["CorrelationId"] = correlationId;
+        context.Response.Headers["X-Correlation-ID"] = correlationId;
+        
+        using (LogContext.PushProperty("CorrelationId", correlationId))
+        {
+            await _next(context);
+        }
+    }
+}
+```
+
+#### Response Wrapper Filter
+```csharp
+public class ApiResponseFilter : IActionFilter
+{
+    public void OnActionExecuted(ActionExecutedContext context)
+    {
+        if (context.Result is ObjectResult objectResult)
+        {
+            var response = new ApiResponse<object>
+            {
+                Success = context.Exception == null,
+                Data = objectResult.Value,
+                Timestamp = DateTime.UtcNow,
+                RequestId = context.HttpContext.Items["CorrelationId"]?.ToString()
+            };
+            
+            context.Result = new ObjectResult(response);
+        }
+    }
+}
+```
+
+### Circuit Breaker Architecture
+
+#### Circuit Breaker Policy Design
+```csharp
+public interface ICircuitBreakerService
+{
+    Task<T> ExecuteAsync<T>(string serviceKey, Func<Task<T>> action);
+    Task ExecuteAsync(string serviceKey, Func<Task> action);
+    CircuitBreakerState GetState(string serviceKey);
+}
+
+public enum CircuitBreakerState
+{
+    Closed,
+    Open,
+    HalfOpen
+}
+```
+
+#### Polly Circuit Breaker Implementation
+```csharp
+public static class CircuitBreakerPolicies
+{
+    public static IAsyncPolicy<T> CreateCircuitBreakerPolicy<T>(
+        int exceptionsAllowedBeforeBreaking,
+        TimeSpan durationOfBreak)
+    {
+        return Policy
+            .Handle<Exception>()
+            .CircuitBreakerAsync(
+                exceptionsAllowedBeforeBreaking: exceptionsAllowedBeforeBreaking,
+                durationOfBreak: durationOfBreak,
+                onBreak: (exception, breakDelay) => 
+                {
+                    // Log circuit breaker open
+                },
+                onReset: () => 
+                {
+                    // Log circuit breaker reset
+                },
+                onHalfOpen: () => 
+                {
+                    // Log circuit breaker half-open
+                });
+    }
+}
+```
+
+#### Circuit Breaker Service Integration
+```csharp
+public class RedisCacheServiceWithCircuitBreaker : ICacheService
+{
+    private readonly ICacheService _innerCacheService;
+    private readonly IAsyncPolicy _circuitBreakerPolicy;
+
+    public async Task<T> GetAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        return await _circuitBreakerPolicy.ExecuteAsync(async () => 
+        {
+            return await _innerCacheService.GetAsync<T>(key, cancellationToken);
+        });
+    }
+}
+```
+
+### Rate Limiting Architecture
+
+#### Rate Limiting Strategy
+```csharp
+public interface IRateLimitService
+{
+    Task<bool> IsAllowedAsync(string key, TimeSpan period, int limit);
+    Task<RateLimitInfo> GetRateLimitInfoAsync(string key);
+}
+
+public class RateLimitInfo
+{
+    public int Limit { get; set; }
+    public int Remaining { get; set; }
+    public DateTime Reset { get; set; }
+    public TimeSpan RetryAfter { get; set; }
+}
+```
+
+#### Rate Limiting Middleware
+```csharp
+public class RateLimitingMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly IRateLimitService _rateLimitService;
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var userId = context.User.FindFirst("sub")?.Value ?? 
+                    context.Connection.RemoteIpAddress?.ToString();
+        
+        var rateLimitKey = $"rate_limit:{userId}";
+        var isAllowed = await _rateLimitService.IsAllowedAsync(
+            rateLimitKey, 
+            TimeSpan.FromMinutes(1), 
+            100);
+
+        if (!isAllowed)
+        {
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            await context.Response.WriteAsync("Rate limit exceeded");
+            return;
+        }
+
+        await _next(context);
+    }
+}
+```
+
+#### Distributed Rate Limiting with Redis
+```csharp
+public class RedisRateLimitService : IRateLimitService
+{
+    private readonly IConnectionMultiplexer _redis;
+
+    public async Task<bool> IsAllowedAsync(string key, TimeSpan period, int limit)
+    {
+        var db = _redis.GetDatabase();
+        var luaScript = @"
+            local current = redis.call('INCR', KEYS[1])
+            if tonumber(current) == 1 then
+                redis.call('EXPIRE', KEYS[1], ARGV[1])
+            end
+            return tonumber(current) <= tonumber(ARGV[2])
+        ";
+        
+        var result = await db.ScriptEvaluateAsync(
+            luaScript,
+            new RedisKey[] { key },
+            new RedisValue[] { period.TotalSeconds, limit });
+        
+        return (bool)result;
+    }
 }
 ```
 
@@ -666,6 +907,8 @@ public async Task<IEnumerable<BookDTO>> Get()
 - /health/messaging - RabbitMQ connectivity
 - /health/database - Database connectivity
 - /health/auth - Auth0 connectivity
+- /health/circuit-breaker - Circuit breaker states
+- /health/rate-limiting - Rate limiting service health
 ```
 
 ### Metrics Collection
@@ -674,6 +917,8 @@ public async Task<IEnumerable<BookDTO>> Get()
 - **Messaging Metrics**: Publish rate, error rate, queue depth
 - **Database Metrics**: Query time, connection pool usage
 - **Authentication Metrics**: Login success/failure rate
+- **Circuit Breaker Metrics**: State transitions, success/failure rates, breaker duration
+- **Rate Limiting Metrics**: Violations per endpoint, violations per user, active rate limits
 
 ### Logging Strategy
 - **Structured Logging**: JSON format with correlation IDs
@@ -684,6 +929,13 @@ public async Task<IEnumerable<BookDTO>> Get()
 ---
 
 ## Migration Strategy
+
+### Phase 0 Migration (API Response Model)
+- Breaking change requiring API versioning
+- Parallel deployment of v1 (legacy) and v2 (new response format)
+- Migration period for existing clients
+- Comprehensive testing and validation
+- Client migration guide
 
 ### Phase 1 Migration (Redis)
 - No breaking changes
@@ -699,9 +951,21 @@ public async Task<IEnumerable<BookDTO>> Get()
 
 ### Phase 3 Migration (Auth0)
 - Breaking change requiring API versioning
-- Parallel deployment of v1 and v2
+- Parallel deployment of v2 and v3
 - Migration period for existing clients
 - Comprehensive testing and validation
+
+### Phase 4 Migration (Circuit Breaker)
+- No breaking changes
+- Gradual rollout with monitoring
+- Circuit breaker state validation
+- Fallback mechanism testing
+
+### Phase 5 Migration (Rate Limiting)
+- No breaking changes
+- Gradual rollout with monitoring
+- Rate limit validation
+- User communication
 
 ---
 

@@ -79,6 +79,34 @@ CoreLibraryCleanAdditionalService/     # Core library project
 - Use DTOs for request/response, not domain entities
 - Implement proper error handling
 - Add XML documentation comments for public APIs
+- Use standardized `ApiResponse<T>` wrapper for all responses
+- Include correlation IDs in all responses
+- Return proper error responses using `ApiErrorResponse`
+
+### Response Model Standards
+- Always use `ApiResponse<T>` wrapper for successful responses
+- Use `ApiErrorResponse` for error responses
+- Include correlation ID in all responses
+- Add pagination metadata for list responses
+- Return consistent error codes and messages
+- Include timestamp and request ID in all responses
+- Follow the established response structure from Phase 0
+
+### Resilience Patterns
+- Use circuit breaker pattern for external service calls
+- Implement retry logic with exponential backoff
+- Add fallback mechanisms for service failures
+- Configure appropriate circuit breaker thresholds
+- Monitor circuit breaker states and transitions
+- Never let external service failures break the entire API
+
+### Rate Limiting Implementation
+- Use distributed rate limiting with Redis
+- Configure appropriate rate limits per user role
+- Add rate limit headers to all responses
+- Return 429 status code when limits are exceeded
+- Implement rate limiting at the middleware level
+- Log rate limiting violations for monitoring
 
 ## Configuration Management
 
@@ -132,13 +160,19 @@ After making changes, verify:
 4. Update/add appropriate tests
 5. Update documentation if API changes are made
 6. Ensure database migrations are created if schema changes
+7. Test API response format if response model changes are made
+8. Verify circuit breaker configurations if resilience patterns are added
+9. Test rate limiting rules if rate limiting is implemented
 
 ## Planned Enhancements
 
 The following features are planned for iterative development:
-1. **Redis Distributed Cache**: Add caching layer for frequently accessed data
-2. **RabbitMQ Message Broker**: Implement message publishing for event-driven architecture
-3. **Auth0 Authentication/Authorization**: Add OAuth2/OIDC authentication and role-based authorization
+1. **Standardized API Response Model**: Implement consistent API response format with correlation tracking
+2. **Redis Distributed Cache**: Add caching layer for frequently accessed data
+3. **RabbitMQ Message Broker**: Implement message publishing for event-driven architecture
+4. **Auth0 Authentication/Authorization**: Add OAuth2/OIDC authentication and role-based authorization
+5. **Circuit Breaker Pattern**: Implement resilience patterns for external service calls
+6. **Rate Limiting**: Implement API rate limiting for abuse prevention and resource protection
 
 When implementing these features:
 - Follow Clean Architecture principles
@@ -147,6 +181,7 @@ When implementing these features:
 - Update dependency injection configuration
 - Add configuration settings
 - Provide migration guides if breaking changes
+- Follow the established implementation order (Phase 0 → Phase 5)
 
 ## Common Pitfalls to Avoid
 
@@ -156,6 +191,11 @@ When implementing these features:
 4. **Ignoring Transactions**: Use Unit of Work for multi-operation transactions
 5. **Hard-coded Configuration**: Use configuration files and dependency injection
 6. **Breaking Clean Architecture**: Keep dependencies flowing inward (API → Library)
+7. **Inconsistent API Responses**: Always use standardized response wrappers
+8. **Ignoring Correlation IDs**: Always include correlation tracking for debugging
+9. **Missing Circuit Breakers**: External service calls should have circuit breakers
+10. **No Rate Limiting**: Implement rate limiting to prevent abuse
+11. **Breaking Changes Without Versioning**: Use API versioning for breaking changes
 
 ## When to Ask for Clarification
 
