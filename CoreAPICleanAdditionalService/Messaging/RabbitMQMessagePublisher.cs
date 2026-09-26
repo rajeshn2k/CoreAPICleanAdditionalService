@@ -18,11 +18,67 @@ namespace Core.API.Clean.AdditionalService.Messaging
         private readonly MessagingSettings _settings;
         private readonly string _exchangeName;
 
+        public RabbitMQMessagePublisher(MessagingSettings settings, ILogger<RabbitMQMessagePublisher> logger)
+        {
+            _settings = settings;
+            _logger = logger;
+            _exchangeName = _settings.ExchangeName;
+
+            try
+            {
+                var factory = new ConnectionFactory
+                {
+                    HostName = _settings.ConnectionString.Replace("amqp://", "").Split(':')[0],
+                    Port = int.Parse(_settings.ConnectionString.Split(':')[2].Split('/')[0]),
+                    UserName = "guest",
+                    Password = "guest"
+                };
+
+                _connection = factory.CreateConnection();
+                _channel = _connection.CreateModel();
+
+                // Declare exchange
+                _channel.ExchangeDeclare(_exchangeName, _settings.ExchangeType, durable: true);
+
+                _logger.LogInformation("RabbitMQ message publisher initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to initialize RabbitMQ message publisher");
+                throw;
+            }
+        }
+
         public RabbitMQMessagePublisher(IOptions<MessagingSettings> settings, ILogger<RabbitMQMessagePublisher> logger)
         {
             _settings = settings.Value;
             _logger = logger;
             _exchangeName = _settings.ExchangeName;
+
+            try
+            {
+                var factory = new ConnectionFactory
+                {
+                    HostName = _settings.ConnectionString.Replace("amqp://", "").Split(':')[0],
+                    Port = int.Parse(_settings.ConnectionString.Split(':')[2].Split('/')[0]),
+                    UserName = "guest",
+                    Password = "guest"
+                };
+
+                _connection = factory.CreateConnection();
+                _channel = _connection.CreateModel();
+
+                // Declare exchange
+                _channel.ExchangeDeclare(_exchangeName, _settings.ExchangeType, durable: true);
+
+                _logger.LogInformation("RabbitMQ message publisher initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to initialize RabbitMQ message publisher");
+                throw;
+            }
+        }
 
             try
             {

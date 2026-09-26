@@ -1,6 +1,7 @@
 ﻿using Core.Library.Clean.AdditionalService;
 using Core.API.Clean.AdditionalService;
 using Core.API.Clean.AdditionalService.Middleware;
+using Core.API.Clean.AdditionalService.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
 
@@ -91,6 +92,9 @@ public static class Program
 
         // Use Correlation ID Middleware (must be first)
         app.UseCorrelationId();
+
+        // Use Rate Limiting Middleware
+        app.UseMiddleware<RateLimitingMiddleware>();
 
         // Use CORS
         app.UseCors("AllowAll");

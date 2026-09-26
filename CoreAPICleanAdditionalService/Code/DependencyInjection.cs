@@ -1,8 +1,12 @@
 ﻿using Core.Library.Clean.AdditionalService;
 using Core.API.Clean.AdditionalService.Cache;
 using Core.API.Clean.AdditionalService.Messaging;
+using Core.API.Clean.AdditionalService.CircuitBreaker;
+using Core.API.Clean.AdditionalService.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
+using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace Core.API.Clean.AdditionalService
 {
@@ -23,11 +27,69 @@ namespace Core.API.Clean.AdditionalService
             services.AddTransient<BookDirector>();
             services.AddTransient<PersonDirector>();
 
-            services.AddScoped<IMessagePublisher, EmptyMessagePublisher>();
-
             // Configure API Response settings
             services.Configure<ApiResponseSettings>(
                 configuration.GetSection("ApiResponse"));
+
+            // Configure Circuit Breaker settings
+            services.Configure<CircuitBreakerSettings>(
+                configuration.GetSection("CircuitBreaker"));
+
+            // Configure and register Circuit Breaker service
+            services.AddSingleton<ICircuitBreakerService>(sp =>
+            {
+                var circuitBreakerService = new CircuitBreakerService(sp.GetRequiredService<ILogger<CircuitBreakerService>>());
+                var circuitBreakerSettings = configuration.GetSection("CircuitBreaker").Get<CircuitBreakerSettings>();
+                var logger = sp.GetRequiredService<ILogger<CircuitBreakerService>>();
+
+                if (circuitBreakerSettings?.Redis != null)
+                {
+                    var redisPolicy = CircuitBreakerPolicyFactory.CreateCircuitBreakerPolicy(
+                        "RedisCache",
+                        circuitBreakerSettings.Redis.ExceptionsAllowedBeforeBreaking,
+                        TimeSpan.FromSeconds(circuitBreakerSettings.Redis.DurationOfBreakInSeconds),
+                        logger);
+
+                    var redisRetryPolicy = CircuitBreakerPolicyFactory.CreateRetryPolicy(
+                        "RedisCache",
+                        circuitBreakerSettings.Redis.RetryCount,
+                        TimeSpan.FromSeconds(circuitBreakerSettings.Redis.RetryDelayInSeconds),
+                        logger);
+
+                    var redisTimeoutPolicy = CircuitBreakerPolicyFactory.CreateTimeoutPolicy(
+                        "RedisCache",
+                        TimeSpan.FromSeconds(circuitBreakerSettings.Redis.TimeoutInSeconds),
+                        logger);
+
+                    var combinedRedisPolicy = Policy.WrapAsync(redisTimeoutPolicy, redisRetryPolicy, redisPolicy);
+                    circuitBreakerService.AddPolicy("RedisCache", combinedRedisPolicy);
+                }
+
+                if (circuitBreakerSettings?.RabbitMQ != null)
+                {
+                    var rabbitMQPolicy = CircuitBreakerPolicyFactory.CreateCircuitBreakerPolicy(
+                        "RabbitMQ",
+                        circuitBreakerSettings.RabbitMQ.ExceptionsAllowedBeforeBreaking,
+                        TimeSpan.FromSeconds(circuitBreakerSettings.RabbitMQ.DurationOfBreakInSeconds),
+                        logger);
+
+                    var rabbitMQRetryPolicy = CircuitBreakerPolicyFactory.CreateRetryPolicy(
+                        "RabbitMQ",
+                        circuitBreakerSettings.RabbitMQ.RetryCount,
+                        TimeSpan.FromSeconds(circuitBreakerSettings.RabbitMQ.RetryDelayInSeconds),
+                        logger);
+
+                    var rabbitMQTimeoutPolicy = CircuitBreakerPolicyFactory.CreateTimeoutPolicy(
+                        "RabbitMQ",
+                        TimeSpan.FromSeconds(circuitBreakerSettings.RabbitMQ.TimeoutInSeconds),
+                        logger);
+
+                    var combinedRabbitMQPolicy = Policy.WrapAsync(rabbitMQTimeoutPolicy, rabbitMQRetryPolicy, rabbitMQPolicy);
+                    circuitBreakerService.AddPolicy("RabbitMQ", combinedRabbitMQPolicy);
+                }
+
+                return circuitBreakerService;
+            });
 
             // Configure Cache services
             services.Configure<CacheSettings>(
@@ -44,17 +106,42 @@ namespace Core.API.Clean.AdditionalService
                         return ConnectionMultiplexer.Connect(config);
                     });
 
-                    services.AddSingleton<ICacheService, RedisCacheService>();
+                    services.AddSingleton<ICacheService>(sp =>
+                    {
+                        var innerCacheService = new RedisCacheService(
+                            sp.GetRequiredService<IConnectionMultiplexer>(),
+                            sp.GetRequiredService<ILogger<RedisCacheService>>(),
+                            cacheSettings);
+                        var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
+                        var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
+                        return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
+                    });
                 }
                 catch
                 {
                     // Fallback to in-memory cache if Redis is unavailable
-                    services.AddSingleton<ICacheService, InMemoryCacheService>();
+                    services.AddSingleton<ICacheService>(sp =>
+                    {
+                        var innerCacheService = new InMemoryCacheService(
+                            sp.GetRequiredService<ILogger<InMemoryCacheService>>(),
+                            cacheSettings);
+                        var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
+                        var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
+                        return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
+                    });
                 }
             }
             else
             {
-                services.AddSingleton<ICacheService, InMemoryCacheService>();
+                services.AddSingleton<ICacheService>(sp =>
+                {
+                    var innerCacheService = new InMemoryCacheService(
+                        sp.GetRequiredService<ILogger<InMemoryCacheService>>(),
+                        cacheSettings);
+                    var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
+                    var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
+                    return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
+                });
             }
 
             // Configure Messaging services
@@ -62,21 +149,63 @@ namespace Core.API.Clean.AdditionalService
                 configuration.GetSection("Messaging"));
 
             var messagingSettings = configuration.GetSection("Messaging").Get<MessagingSettings>();
+            IMessagePublisher baseMessagePublisher;
+            
             if (messagingSettings != null && messagingSettings.EnableMessaging)
             {
                 try
                 {
-                    services.AddSingleton<IMessagePublisher, RabbitMQMessagePublisher>();
+                    baseMessagePublisher = new RabbitMQMessagePublisher(
+                        messagingSettings);
                 }
                 catch
                 {
                     // Fallback to empty publisher if RabbitMQ is unavailable
-                    services.AddScoped<IMessagePublisher, EmptyMessagePublisher>();
+                    baseMessagePublisher = new EmptyMessagePublisher();
                 }
             }
             else
             {
-                services.AddScoped<IMessagePublisher, EmptyMessagePublisher>();
+                baseMessagePublisher = new EmptyMessagePublisher();
+            }
+
+            // Register circuit breaker wrapped message publisher as scoped
+            services.AddScoped<IMessagePublisher>(sp =>
+            {
+                var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
+                var logger = sp.GetRequiredService<ILogger<CircuitBreakerMessagePublisher>>();
+                return new CircuitBreakerMessagePublisher(baseMessagePublisher, circuitBreakerService, logger);
+            });
+
+            // Configure Rate Limiting settings
+            services.Configure<RateLimitingSettings>(
+                configuration.GetSection("RateLimiting"));
+
+            // Configure Rate Limiting services
+            var rateLimitingSettings = configuration.GetSection("RateLimiting").Get<RateLimitingSettings>();
+            if (rateLimitingSettings != null && rateLimitingSettings.EnableRateLimiting)
+            {
+                if (rateLimitingSettings.UseDistributedRateLimiting && cacheSettings != null && cacheSettings.EnableCache)
+                {
+                    services.AddSingleton<IRateLimitingService>(sp =>
+                    {
+                        var connectionMultiplexer = sp.GetService<IConnectionMultiplexer>();
+                        if (connectionMultiplexer != null)
+                        {
+                            return new RedisRateLimitingService(connectionMultiplexer, sp.GetRequiredService<ILogger<RedisRateLimitingService>>());
+                        }
+                        // Fallback to in-memory rate limiting if Redis is unavailable
+                        return new InMemoryRateLimitingService(sp.GetRequiredService<ILogger<InMemoryRateLimitingService>>());
+                    });
+                }
+                else
+                {
+                    services.AddSingleton<IRateLimitingService, InMemoryRateLimitingService>();
+                }
+            }
+            else
+            {
+                services.AddSingleton<IRateLimitingService, InMemoryRateLimitingService>();
             }
 
             return services;
