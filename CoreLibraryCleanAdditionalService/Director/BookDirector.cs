@@ -1,68 +1,155 @@
-﻿namespace Core.Library.Clean.AdditionalService
+﻿using Microsoft.Extensions.Logging;
+using Core.Library.Clean.AdditionalService.Messaging.Contracts;
+
+namespace Core.Library.Clean.AdditionalService
 {
     public class BookDirector : IEntityDirector<BookDTO, BookCreateDTO>
     {
         private readonly IUnitOfWork unitOfWork;
         private readonly IMessagePublisher messagePublisher;
+        private readonly ICacheService cacheService;
+        private readonly ILogger<BookDirector> logger;
 
-        public BookDirector(IUnitOfWork unitOfWork, IMessagePublisher messagePublisher)
+        public BookDirector(IUnitOfWork unitOfWork, IMessagePublisher messagePublisher, ICacheService cacheService, ILogger<BookDirector> logger)
         {
             this.unitOfWork = unitOfWork;
             this.messagePublisher = messagePublisher;
+            this.cacheService = cacheService;
+            this.logger = logger;
         }
 
         public async Task<IEnumerable<BookDTO>> GetEntitiesAsync(CancellationToken cancellationToken)
         {
-            var books = await unitOfWork.BookRepository.GetEntitiesAsync(cancellationToken);
+            try
+            {
+                var cacheKey = "book:all";
+                var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
+                
+                if (cachedBooks != null)
+                {
+                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                    return cachedBooks;
+                }
 
-            if (books == null)
-            {
-                return null;
+                var books = await unitOfWork.BookRepository.GetEntitiesAsync(cancellationToken);
+
+                if (books == null)
+                {
+                    return null;
+                }
+                else
+                {
+                    var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+                    await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(30), cancellationToken);
+                    return bookDTOs;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return books.Select(BookMapper.BookToBookDTO);
+                logger.LogError(ex, "Error in GetEntitiesAsync, falling back to database");
+                var books = await unitOfWork.BookRepository.GetEntitiesAsync(cancellationToken);
+                return books?.Select(BookMapper.BookToBookDTO);
             }
         }
 
         public async Task<BookDTO> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
         {
-            var book = await unitOfWork.BookRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var cacheKey = $"book:{entityId}";
+                var cachedBook = await cacheService.GetAsync<BookDTO>(cacheKey, cancellationToken);
+                
+                if (cachedBook != null)
+                {
+                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                    return cachedBook;
+                }
 
-            if (book == null)
-            {
-                return null;
+                var book = await unitOfWork.BookRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
+
+                if (book == null)
+                {
+                    return null;
+                }
+                else
+                {
+                    var bookDTO = BookMapper.BookToBookDTO(book);
+                    await cacheService.SetAsync(cacheKey, bookDTO, TimeSpan.FromMinutes(60), cancellationToken);
+                    return bookDTO;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return BookMapper.BookToBookDTO(book);
+                logger.LogError(ex, "Error in GetEntityByIdAsync, falling back to database");
+                var book = await unitOfWork.BookRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
+                return book != null ? BookMapper.BookToBookDTO(book) : null;
             }
         }
 
         public async Task<IEnumerable<BookDTO>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
         {
-            var books = await unitOfWork.BookRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var cacheKey = $"book:search:{searchValue}";
+                var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
+                
+                if (cachedBooks != null)
+                {
+                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                    return cachedBooks;
+                }
 
-            if (books == null)
-            {
-                return null;
+                var books = await unitOfWork.BookRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
+
+                if (books == null)
+                {
+                    return null;
+                }
+                else
+                {
+                    var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+                    await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(15), cancellationToken);
+                    return bookDTOs;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return books.Select(BookMapper.BookToBookDTO);
+                logger.LogError(ex, "Error in SearchEntitiesAsync, falling back to database");
+                var books = await unitOfWork.BookRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
+                return books?.Select(BookMapper.BookToBookDTO);
             }
         }
         public async Task<IEnumerable<BookDTO>> SearchEntitiesByForeignIdAsync(string personId, CancellationToken cancellationToken)
         {
-            var books = await unitOfWork.BookRepository.SearchEntitiesByForeignIdAsync(personId, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var cacheKey = $"book:person:{personId}";
+                var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
+                
+                if (cachedBooks != null)
+                {
+                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                    return cachedBooks;
+                }
 
-            if (books == null)
-            {
-                return null;
+                var books = await unitOfWork.BookRepository.SearchEntitiesByForeignIdAsync(personId, cancellationToken).ConfigureAwait(false);
+
+                if (books == null)
+                {
+                    return null;
+                }
+                else
+                {
+                    var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+                    await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(30), cancellationToken);
+                    return bookDTOs;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return books.Select(BookMapper.BookToBookDTO);
+                logger.LogError(ex, "Error in SearchEntitiesByForeignIdAsync, falling back to database");
+                var books = await unitOfWork.BookRepository.SearchEntitiesByForeignIdAsync(personId, cancellationToken).ConfigureAwait(false);
+                return books?.Select(BookMapper.BookToBookDTO);
             }
         }
 
@@ -75,7 +162,20 @@
                 var result = await unitOfWork.BookRepository.UpdateAsync(entityId, bookEntity, cancellationToken).ConfigureAwait(false);
 
                 if (result > 0)
-                    await messagePublisher.PublishAsync(bookEntity, MessageTypeConstant.BookType, MessageActionConstant.Update, cancellationToken).ConfigureAwait(false);
+                {
+                    // Invalidate cache
+                    await InvalidateBookCacheAsync(entityId, cancellationToken);
+                    
+                    // Publish message
+                    var message = new Messaging.Contracts.BookUpdatedMessage
+                    {
+                        BookId = entityId,
+                        BookData = book,
+                        Timestamp = DateTime.UtcNow,
+                        CorrelationId = Guid.NewGuid().ToString()
+                    };
+                    await messagePublisher.PublishAsync(message, cancellationToken).ConfigureAwait(false);
+                }
 
                 return result;
             }
@@ -92,7 +192,20 @@
                 var result = await unitOfWork.BookRepository.UpdateManyAsync(bookEntities, cancellationToken).ConfigureAwait(false);
 
                 if (result > 0)
-                    await messagePublisher.PublishAsync(books, MessageTypeConstant.BookType, MessageActionConstant.Update, cancellationToken).ConfigureAwait(false);
+                {
+                    // Invalidate all book cache
+                    await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
+                    
+                    // Publish messages
+                    var messages = bookEntities.Select(b => new Messaging.Contracts.BookUpdatedMessage
+                    {
+                        BookId = b.Id,
+                        BookData = BookMapper.BookToBookDTO(b),
+                        Timestamp = DateTime.UtcNow,
+                        CorrelationId = Guid.NewGuid().ToString()
+                    });
+                    await messagePublisher.PublishAsync(messages, cancellationToken).ConfigureAwait(false);
+                }
 
                 return result;
             }
@@ -110,7 +223,18 @@
 
                 if (result != null)
                 {
-                    await messagePublisher.PublishAsync(book, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
+                    // Invalidate book list cache
+                    await cacheService.RemoveAsync("book:all", cancellationToken);
+                    
+                    // Publish message
+                    var message = new Messaging.Contracts.BookCreatedMessage
+                    {
+                        BookId = result.Id,
+                        BookData = BookMapper.BookToBookDTO(result),
+                        Timestamp = DateTime.UtcNow,
+                        CorrelationId = Guid.NewGuid().ToString()
+                    };
+                    await messagePublisher.PublishAsync(message, cancellationToken).ConfigureAwait(false);
 
                     return BookMapper.BookToBookDTO(result);
                 }
@@ -129,7 +253,18 @@
 
                 if (result != null)
                 {
-                    await messagePublisher.PublishAsync(books, MessageTypeConstant.BookType, MessageActionConstant.Create, cancellationToken).ConfigureAwait(false);
+                    // Invalidate all book cache
+                    await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
+                    
+                    // Publish messages
+                    var messages = result.Select(b => new Messaging.Contracts.BookCreatedMessage
+                    {
+                        BookId = b.Id,
+                        BookData = BookMapper.BookToBookDTO(b),
+                        Timestamp = DateTime.UtcNow,
+                        CorrelationId = Guid.NewGuid().ToString()
+                    });
+                    await messagePublisher.PublishAsync(messages, cancellationToken).ConfigureAwait(false);
 
                     return result.Select(BookMapper.BookToBookDTO);
                 }
@@ -142,12 +277,25 @@
         {
             var result = await unitOfWork.BookRepository.DeleteEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
 
+            if (result > 0)
+            {
+                // Invalidate cache
+                await InvalidateBookCacheAsync(entityId, cancellationToken);
+            }
+
             return result;
         }
 
         public async Task<long> DeleteEntitiesAsync(CancellationToken cancellationToken)
         {
             var result = await unitOfWork.BookRepository.DeleteEntitiesAsync(cancellationToken).ConfigureAwait(false);
+
+            if (result > 0)
+            {
+                // Invalidate all book cache
+                await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
+            }
+
             return result;
         }
 
@@ -163,11 +311,19 @@
 
                 if (result != null)
                 {
+                    // Invalidate all book cache
+                    await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
                     return result.Select(BookMapper.BookToBookDTO);
                 }
             }
 
             return null;
+        }
+
+        private async Task InvalidateBookCacheAsync(string bookId, CancellationToken cancellationToken)
+        {
+            await cacheService.RemoveAsync($"book:{bookId}", cancellationToken);
+            await cacheService.RemoveAsync("book:all", cancellationToken);
         }
     }
 }

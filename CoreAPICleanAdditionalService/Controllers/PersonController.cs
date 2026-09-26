@@ -4,10 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace Core.API.Clean.AdditionalService.Controllers
 {
     /// <summary>
-    /// PersonController
+    /// V1 Controller for managing persons (legacy format - kept for backward compatibility)
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
+    [ApiVersion("1.0")]
+    [ApiVersionNeutral] // Allow this to work without version specification for backward compatibility
     public class PersonController(PersonDirector personDirector) : ControllerBase
     {
         private readonly PersonDirector personDirector = personDirector;

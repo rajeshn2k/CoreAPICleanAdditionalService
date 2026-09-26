@@ -1,5 +1,8 @@
 ﻿using Core.Library.Clean.AdditionalService;
 using Core.API.Clean.AdditionalService;
+using Core.API.Clean.AdditionalService.Middleware;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Versioning;
 
 public static class Program
 {
@@ -60,6 +63,24 @@ public static class Program
         // Services
         builder.Services.AddControllers();
 
+        // API Versioning
+        builder.Services.AddApiVersioning(options =>
+        {
+            options.DefaultApiVersion = new ApiVersion(2, 0);
+            options.AssumeDefaultVersionWhenUnspecified = true;
+            options.ReportApiVersions = true;
+            options.ApiVersionReader = ApiVersionReader.Combine(
+                new UrlSegmentApiVersionReader(),
+                new HeaderApiVersionReader("X-Api-Version"),
+                new QueryStringApiVersionReader("api-version"));
+        });
+
+        builder.Services.AddVersionedApiExplorer(options =>
+        {
+            options.GroupNameFormat = "'v'VVV";
+            options.SubstituteApiVersionInUrl = true;
+        });
+
         //SWAGER
         builder.Services.AddOpenApi();
         builder.Services.AddEndpointsApiExplorer();
@@ -67,6 +88,9 @@ public static class Program
         var app = builder.Build();
 
         // Pipeline
+
+        // Use Correlation ID Middleware (must be first)
+        app.UseCorrelationId();
 
         // Use CORS
         app.UseCors("AllowAll");

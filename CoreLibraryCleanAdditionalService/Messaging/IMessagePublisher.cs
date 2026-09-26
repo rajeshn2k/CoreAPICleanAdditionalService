@@ -3,28 +3,18 @@
     public interface IMessagePublisher
     {
         /// <summary>
-        /// if "where TMessageContract : class" needed change 
-        /// should also be done at implementaion class method and also may not be able to push primitive types like string, int
+        /// Publish a single message
         /// </summary>
-        /// <typeparam name="TMessageContract"></typeparam>
-        /// <param name="message"></param>
-        /// <param name="messageType"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        Task PublishAsync<TMessageContract>(TMessageContract message, string messageType, string messageAction, CancellationToken cancellationToken);
-        //where TMessageContract : class;
+        Task PublishAsync<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : class;
 
         /// <summary>
-        /// PublishWithSessionAsync
-        /// if "where TMessageContract : class" needed change 
-        /// should also be done at implementaion class method and also may not be able to push primitive types like string, int
+        /// Publish multiple messages
         /// </summary>
-        /// <typeparam name="TMessageContract"></typeparam>
-        /// <param name="message"></param>
-        /// <param name="messageType"></param>
-        /// <param name="messageAction"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        Task PublishAsync<TMessageContract>(IEnumerable<TMessageContract> message, string messageType, string messageAction, CancellationToken cancellationToken);
+        Task PublishAsync<TMessage>(IEnumerable<TMessage> messages, CancellationToken cancellationToken = default) where TMessage : class;
+
+        /// <summary>
+        /// Publish a message with explicit type and action
+        /// </summary>
+        Task PublishAsync(object entity, string messageType, string messageAction, CancellationToken cancellationToken = default);
     }
 }
