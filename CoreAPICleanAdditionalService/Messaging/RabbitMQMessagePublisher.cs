@@ -80,31 +80,6 @@ namespace Core.API.Clean.AdditionalService.Messaging
             }
         }
 
-            try
-            {
-                var factory = new ConnectionFactory
-                {
-                    HostName = _settings.ConnectionString.Replace("amqp://", "").Split(':')[0],
-                    Port = int.Parse(_settings.ConnectionString.Split(':')[2].Split('/')[0]),
-                    UserName = "guest",
-                    Password = "guest"
-                };
-
-                _connection = factory.CreateConnection();
-                _channel = _connection.CreateModel();
-
-                // Declare exchange
-                _channel.ExchangeDeclare(_exchangeName, _settings.ExchangeType, durable: true);
-
-                _logger.LogInformation("RabbitMQ message publisher initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to initialize RabbitMQ message publisher");
-                throw;
-            }
-        }
-
         public async Task PublishAsync<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : class
         {
             try
@@ -182,7 +157,7 @@ namespace Core.API.Clean.AdditionalService.Messaging
                 return "person.updated";
             if (message is PersonDeletedMessage)
                 return "person.deleted";
-            
+
             return "default";
         }
 

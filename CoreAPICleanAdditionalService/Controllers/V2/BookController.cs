@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Core.API.Clean.AdditionalService.Controllers.V2
 {
     /// <summary>
-    /// V2 Controller for managing books with standardized API response format
+    /// V2 Controller for managing books with standardized API response format   
     /// </summary>
     [ApiController]
     [ApiVersion("2.0")]

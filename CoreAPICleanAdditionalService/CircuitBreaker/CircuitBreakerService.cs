@@ -155,7 +155,7 @@ namespace Core.API.Clean.AdditionalService.CircuitBreaker
                 .TimeoutAsync(
                     timeout: timeout,
                     timeoutStrategy: Polly.Timeout.TimeoutStrategy.Optimistic,
-                    onTimeout: (context, timeSpan, task) =>
+                    onTimeoutAsync: async (context, timeSpan, task) =>
                     {
                         logger.LogWarning("Timeout occurred for {ServiceKey} after {Timeout}s", serviceKey, timeSpan.TotalSeconds);
                     });

@@ -6,7 +6,9 @@ using Core.API.Clean.AdditionalService.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Linq;
+using Polly;
 
 namespace Core.API.Clean.AdditionalService
 {
@@ -110,8 +112,8 @@ namespace Core.API.Clean.AdditionalService
                     {
                         var innerCacheService = new RedisCacheService(
                             sp.GetRequiredService<IConnectionMultiplexer>(),
-                            sp.GetRequiredService<ILogger<RedisCacheService>>(),
-                            cacheSettings);
+                            sp.GetRequiredService<IOptions<CacheSettings>>(),
+                            sp.GetRequiredService<ILogger<RedisCacheService>>());
                         var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
                         var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
                         return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
@@ -123,8 +125,8 @@ namespace Core.API.Clean.AdditionalService
                     services.AddSingleton<ICacheService>(sp =>
                     {
                         var innerCacheService = new InMemoryCacheService(
-                            sp.GetRequiredService<ILogger<InMemoryCacheService>>(),
-                            cacheSettings);
+                            sp.GetRequiredService<IOptions<CacheSettings>>(),
+                            sp.GetRequiredService<ILogger<InMemoryCacheService>>());
                         var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
                         var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
                         return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
@@ -136,8 +138,8 @@ namespace Core.API.Clean.AdditionalService
                 services.AddSingleton<ICacheService>(sp =>
                 {
                     var innerCacheService = new InMemoryCacheService(
-                        sp.GetRequiredService<ILogger<InMemoryCacheService>>(),
-                        cacheSettings);
+                        sp.GetRequiredService<IOptions<CacheSettings>>(),
+                        sp.GetRequiredService<ILogger<InMemoryCacheService>>() );
                     var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
                     var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
                     return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
@@ -148,30 +150,32 @@ namespace Core.API.Clean.AdditionalService
             services.Configure<MessagingSettings>(
                 configuration.GetSection("Messaging"));
 
-            var messagingSettings = configuration.GetSection("Messaging").Get<MessagingSettings>();
-            IMessagePublisher baseMessagePublisher;
-            
-            if (messagingSettings != null && messagingSettings.EnableMessaging)
-            {
-                try
-                {
-                    baseMessagePublisher = new RabbitMQMessagePublisher(
-                        messagingSettings);
-                }
-                catch
-                {
-                    // Fallback to empty publisher if RabbitMQ is unavailable
-                    baseMessagePublisher = new EmptyMessagePublisher();
-                }
-            }
-            else
-            {
-                baseMessagePublisher = new EmptyMessagePublisher();
-            }
-
-            // Register circuit breaker wrapped message publisher as scoped
+            // Register scoped IMessagePublisher with circuit breaker wrapper
             services.AddScoped<IMessagePublisher>(sp =>
             {
+                var messagingOptions = sp.GetRequiredService<IOptions<MessagingSettings>>();
+                var messagingSettings = messagingOptions.Value;
+                IMessagePublisher baseMessagePublisher;
+
+                if (messagingSettings != null && messagingSettings.EnableMessaging)
+                {
+                    try
+                    {
+                        baseMessagePublisher = new RabbitMQMessagePublisher(
+                            messagingOptions,
+                            sp.GetRequiredService<ILogger<RabbitMQMessagePublisher>>());
+                    }
+                    catch
+                    {
+                        // Fallback to empty publisher if RabbitMQ is unavailable
+                        baseMessagePublisher = new EmptyMessagePublisher(sp.GetRequiredService<ILogger<EmptyMessagePublisher>>());
+                    }
+                }
+                else
+                {
+                    baseMessagePublisher = new EmptyMessagePublisher(sp.GetRequiredService<ILogger<EmptyMessagePublisher>>());
+                }
+
                 var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
                 var logger = sp.GetRequiredService<ILogger<CircuitBreakerMessagePublisher>>();
                 return new CircuitBreakerMessagePublisher(baseMessagePublisher, circuitBreakerService, logger);

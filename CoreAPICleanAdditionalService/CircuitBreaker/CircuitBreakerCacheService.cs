@@ -1,5 +1,6 @@
 using Core.Library.Clean.AdditionalService;
 using Microsoft.Extensions.Logging;
+using Polly.CircuitBreaker;
 
 namespace Core.API.Clean.AdditionalService.CircuitBreaker
 {
@@ -117,6 +118,11 @@ namespace Core.API.Clean.AdditionalService.CircuitBreaker
                 _logger.LogError(ex, "Error in cache service ExistsAsync for key: {Key}", key);
                 return false;
             }
+        }
+
+        public Task RemoveAllByPatternAsync(string pattern, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
         }
     }
 }
