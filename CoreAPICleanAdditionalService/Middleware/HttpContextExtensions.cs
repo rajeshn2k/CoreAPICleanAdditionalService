@@ -1,4 +1,4 @@
-namespace Core.API.Clean.AdditionalService.Middleware
+namespace Core.API.Clean.AdditionalService
 {
     /// <summary>
     /// Extension methods for HttpContext to access correlation ID

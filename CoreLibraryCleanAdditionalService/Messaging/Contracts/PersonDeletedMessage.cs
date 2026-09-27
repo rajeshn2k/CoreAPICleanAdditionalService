@@ -1,4 +1,4 @@
-namespace Core.Library.Clean.AdditionalService.Messaging.Contracts
+namespace Core.Library.Clean.AdditionalService
 {
     /// <summary>
     /// Message published when a person is deleted

@@ -1,4 +1,3 @@
-using Core.API.Clean.AdditionalService.CircuitBreaker;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Core.API.Clean.AdditionalService.Controllers

@@ -1,6 +1,6 @@
 using Core.Library.Clean.AdditionalService;
 
-namespace Core.API.Clean.AdditionalService.Middleware
+namespace Core.API.Clean.AdditionalService
 {
     /// <summary>
     /// Middleware to handle correlation ID for request tracking and debugging

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Core.Library.Clean.AdditionalService;
 
-namespace Core.API.Clean.AdditionalService.RateLimiting
+namespace Core.API.Clean.AdditionalService
 {
     public class RateLimitingMiddleware
     {

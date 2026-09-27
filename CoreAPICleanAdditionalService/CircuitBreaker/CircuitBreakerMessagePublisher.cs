@@ -1,10 +1,11 @@
 using Core.Library.Clean.AdditionalService;
-using Core.Library.Clean.AdditionalService.Messaging.Contracts;
-using Microsoft.Extensions.Logging;
 using Polly.CircuitBreaker;
 
-namespace Core.API.Clean.AdditionalService.CircuitBreaker
+namespace Core.API.Clean.AdditionalService
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class CircuitBreakerMessagePublisher : IMessagePublisher
     {
         private readonly IMessagePublisher _innerMessagePublisher;

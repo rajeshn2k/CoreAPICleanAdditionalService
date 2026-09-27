@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using Core.Library.Clean.AdditionalService.Messaging.Contracts;
 
 namespace Core.Library.Clean.AdditionalService
 {
@@ -176,7 +175,7 @@ namespace Core.Library.Clean.AdditionalService
                     await InvalidatePersonCacheAsync(entityId, cancellationToken);
                     
                     // Publish message
-                    var message = new Messaging.Contracts.PersonUpdatedMessage
+                    var message = new PersonUpdatedMessage
                     {
                         PersonId = entityId,
                         PersonData = person,
@@ -206,7 +205,7 @@ namespace Core.Library.Clean.AdditionalService
                     await cacheService.RemoveByPatternAsync("person:*", cancellationToken);
                     
                     // Publish messages
-                    var messages = personEntities.Select(p => new Messaging.Contracts.PersonUpdatedMessage
+                    var messages = personEntities.Select(p => new PersonUpdatedMessage
                     {
                         PersonId = p.Id,
                         PersonData = PersonMapper.PersonToPersonDTO(p),
@@ -236,7 +235,7 @@ namespace Core.Library.Clean.AdditionalService
                     await cacheService.RemoveAsync("person:all", cancellationToken);
                     
                     // Publish message
-                    var message = new Messaging.Contracts.PersonCreatedMessage
+                    var message = new PersonCreatedMessage
                     {
                         PersonId = result.Id,
                         PersonData = PersonMapper.PersonToPersonDTO(result),
@@ -266,7 +265,7 @@ namespace Core.Library.Clean.AdditionalService
                     await cacheService.RemoveByPatternAsync("person:*", cancellationToken);
                     
                     // Publish messages
-                    var messages = result.Select(p => new Messaging.Contracts.PersonCreatedMessage
+                    var messages = result.Select(p => new PersonCreatedMessage
                     {
                         PersonId = p.Id,
                         PersonData = PersonMapper.PersonToPersonDTO(p),

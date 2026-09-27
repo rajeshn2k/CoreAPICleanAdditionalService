@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using Core.Library.Clean.AdditionalService.Messaging.Contracts;
 
 namespace Core.Library.Clean.AdditionalService
 {
@@ -167,7 +166,7 @@ namespace Core.Library.Clean.AdditionalService
                     await InvalidateBookCacheAsync(entityId, cancellationToken);
                     
                     // Publish message
-                    var message = new Messaging.Contracts.BookUpdatedMessage
+                    var message = new BookUpdatedMessage
                     {
                         BookId = entityId,
                         BookData = book,
@@ -197,7 +196,7 @@ namespace Core.Library.Clean.AdditionalService
                     await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
                     
                     // Publish messages
-                    var messages = bookEntities.Select(b => new Messaging.Contracts.BookUpdatedMessage
+                    var messages = bookEntities.Select(b => new BookUpdatedMessage
                     {
                         BookId = b.Id,
                         BookData = BookMapper.BookToBookDTO(b),
@@ -227,7 +226,7 @@ namespace Core.Library.Clean.AdditionalService
                     await cacheService.RemoveAsync("book:all", cancellationToken);
                     
                     // Publish message
-                    var message = new Messaging.Contracts.BookCreatedMessage
+                    var message = new BookCreatedMessage
                     {
                         BookId = result.Id,
                         BookData = BookMapper.BookToBookDTO(result),
@@ -257,7 +256,7 @@ namespace Core.Library.Clean.AdditionalService
                     await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
                     
                     // Publish messages
-                    var messages = result.Select(b => new Messaging.Contracts.BookCreatedMessage
+                    var messages = result.Select(b => new BookCreatedMessage
                     {
                         BookId = b.Id,
                         BookData = BookMapper.BookToBookDTO(b),

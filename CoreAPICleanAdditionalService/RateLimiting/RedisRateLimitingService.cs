@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using Core.Library.Clean.AdditionalService;
 
-namespace Core.API.Clean.AdditionalService.RateLimiting
+namespace Core.API.Clean.AdditionalService
 {
     public class RedisRateLimitingService : IRateLimitingService
     {

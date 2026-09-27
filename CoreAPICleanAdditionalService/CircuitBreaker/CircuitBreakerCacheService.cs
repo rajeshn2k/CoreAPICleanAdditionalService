@@ -1,9 +1,11 @@
 using Core.Library.Clean.AdditionalService;
-using Microsoft.Extensions.Logging;
 using Polly.CircuitBreaker;
 
-namespace Core.API.Clean.AdditionalService.CircuitBreaker
+namespace Core.API.Clean.AdditionalService
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class CircuitBreakerCacheService : ICacheService
     {
         private readonly ICacheService _innerCacheService;

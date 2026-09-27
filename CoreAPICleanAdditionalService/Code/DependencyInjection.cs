@@ -1,8 +1,5 @@
 ﻿using Core.Library.Clean.AdditionalService;
-using Core.API.Clean.AdditionalService.Cache;
-using Core.API.Clean.AdditionalService.Messaging;
-using Core.API.Clean.AdditionalService.CircuitBreaker;
-using Core.API.Clean.AdditionalService.RateLimiting;
+using Core.API.Clean.AdditionalService;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Microsoft.Extensions.Logging;
@@ -25,7 +22,7 @@ namespace Core.API.Clean.AdditionalService
 
             ConfigureServices_DataAccess(services, configuration);
 
-            // Add Unit of Work and Directors
+            // Dependency Injection and Register for Directors
             services.AddTransient<BookDirector>();
             services.AddTransient<PersonDirector>();
 
@@ -41,7 +38,9 @@ namespace Core.API.Clean.AdditionalService
             services.AddSingleton<ICircuitBreakerService>(sp =>
             {
                 var circuitBreakerService = new CircuitBreakerService(sp.GetRequiredService<ILogger<CircuitBreakerService>>());
+
                 var circuitBreakerSettings = configuration.GetSection("CircuitBreaker").Get<CircuitBreakerSettings>();
+
                 var logger = sp.GetRequiredService<ILogger<CircuitBreakerService>>();
 
                 if (circuitBreakerSettings?.Redis != null)
@@ -64,6 +63,7 @@ namespace Core.API.Clean.AdditionalService
                         logger);
 
                     var combinedRedisPolicy = Policy.WrapAsync(redisTimeoutPolicy, redisRetryPolicy, redisPolicy);
+
                     circuitBreakerService.AddPolicy("RedisCache", combinedRedisPolicy);
                 }
 
@@ -87,6 +87,7 @@ namespace Core.API.Clean.AdditionalService
                         logger);
 
                     var combinedRabbitMQPolicy = Policy.WrapAsync(rabbitMQTimeoutPolicy, rabbitMQRetryPolicy, rabbitMQPolicy);
+
                     circuitBreakerService.AddPolicy("RabbitMQ", combinedRabbitMQPolicy);
                 }
 
@@ -114,8 +115,11 @@ namespace Core.API.Clean.AdditionalService
                             sp.GetRequiredService<IConnectionMultiplexer>(),
                             sp.GetRequiredService<IOptions<CacheSettings>>(),
                             sp.GetRequiredService<ILogger<RedisCacheService>>());
+
                         var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
+
                         var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
+
                         return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
                     });
                 }
@@ -127,8 +131,11 @@ namespace Core.API.Clean.AdditionalService
                         var innerCacheService = new InMemoryCacheService(
                             sp.GetRequiredService<IOptions<CacheSettings>>(),
                             sp.GetRequiredService<ILogger<InMemoryCacheService>>());
+
                         var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
+
                         var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
+
                         return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
                     });
                 }
@@ -140,8 +147,11 @@ namespace Core.API.Clean.AdditionalService
                     var innerCacheService = new InMemoryCacheService(
                         sp.GetRequiredService<IOptions<CacheSettings>>(),
                         sp.GetRequiredService<ILogger<InMemoryCacheService>>() );
+
                     var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
+
                     var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
+
                     return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
                 });
             }
@@ -187,6 +197,7 @@ namespace Core.API.Clean.AdditionalService
 
             // Configure Rate Limiting services
             var rateLimitingSettings = configuration.GetSection("RateLimiting").Get<RateLimitingSettings>();
+
             if (rateLimitingSettings != null && rateLimitingSettings.EnableRateLimiting)
             {
                 if (rateLimitingSettings.UseDistributedRateLimiting && cacheSettings != null && cacheSettings.EnableCache)
@@ -217,12 +228,7 @@ namespace Core.API.Clean.AdditionalService
 
         private static void ConfigureServices_DataAccess(IServiceCollection services, IConfiguration configuration)
         {
-            // Add Entity Framework + SQLite
-
-            //services.AddDbContext<SqlDataBaseDataContext>(options =>
-            //   options.UseSqlite(
-            //       configuration.GetConnectionString("SqliteDBContext")
-            //   ));
+            // Dependency Injection for Entity Framework + SQLite
 
             services.AddDbContext<SqlDataBaseDataContext>(options =>
             {

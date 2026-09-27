@@ -1,4 +1,4 @@
-namespace Core.API.Clean.AdditionalService.RateLimiting
+namespace Core.API.Clean.AdditionalService
 {
     public interface IRateLimitingService
     {

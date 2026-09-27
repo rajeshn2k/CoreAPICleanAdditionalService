@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using Newtonsoft.Json;
 
-namespace Core.API.Clean.AdditionalService.Cache
+namespace Core.API.Clean.AdditionalService
 {
     /// <summary>
     /// Redis implementation of cache service

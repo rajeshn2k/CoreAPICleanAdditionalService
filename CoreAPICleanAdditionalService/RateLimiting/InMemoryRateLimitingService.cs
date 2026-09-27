@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Core.Library.Clean.AdditionalService;
 
-namespace Core.API.Clean.AdditionalService.RateLimiting
+namespace Core.API.Clean.AdditionalService
 {
     public class InMemoryRateLimitingService : IRateLimitingService
     {

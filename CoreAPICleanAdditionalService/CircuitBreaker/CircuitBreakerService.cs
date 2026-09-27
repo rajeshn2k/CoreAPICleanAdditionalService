@@ -1,10 +1,7 @@
-using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.CircuitBreaker;
-using Polly.Retry;
-using Core.Library.Clean.AdditionalService;
 
-namespace Core.API.Clean.AdditionalService.CircuitBreaker
+namespace Core.API.Clean.AdditionalService
 {
     public interface ICircuitBreakerService
     {
@@ -20,6 +17,9 @@ namespace Core.API.Clean.AdditionalService.CircuitBreaker
         HalfOpen
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class CircuitBreakerService : ICircuitBreakerService
     {
         private readonly ILogger<CircuitBreakerService> _logger;
@@ -40,6 +40,9 @@ namespace Core.API.Clean.AdditionalService.CircuitBreaker
             _logger.LogInformation("Added circuit breaker policy for service: {ServiceKey}", serviceKey);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public async Task<T> ExecuteAsync<T>(string serviceKey, Func<Task<T>> action, CancellationToken cancellationToken = default)
         {
             if (!_policies.ContainsKey(serviceKey))
@@ -100,8 +103,14 @@ namespace Core.API.Clean.AdditionalService.CircuitBreaker
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public static class CircuitBreakerPolicyFactory
     {
+        /// <summary>
+        /// 
+        /// </summary>
         public static IAsyncPolicy CreateCircuitBreakerPolicy(
             string serviceKey,
             int exceptionsAllowedBeforeBreaking,
@@ -128,6 +137,9 @@ namespace Core.API.Clean.AdditionalService.CircuitBreaker
                     });
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public static IAsyncPolicy CreateRetryPolicy(
             string serviceKey,
             int retryCount,
@@ -146,6 +158,9 @@ namespace Core.API.Clean.AdditionalService.CircuitBreaker
                     });
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public static IAsyncPolicy CreateTimeoutPolicy(
             string serviceKey,
             TimeSpan timeout,

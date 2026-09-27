@@ -1,7 +1,7 @@
 using Core.Library.Clean.AdditionalService;
 using Microsoft.Extensions.Options;
 
-namespace Core.API.Clean.AdditionalService.Cache
+namespace Core.API.Clean.AdditionalService
 {
     /// <summary>
     /// In-memory fallback cache service when Redis is unavailable
