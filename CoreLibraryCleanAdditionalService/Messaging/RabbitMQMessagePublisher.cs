@@ -1,9 +1,9 @@
-using Core.Library.Clean.AdditionalService;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
 
-namespace Core.API.Clean.AdditionalService
+namespace Core.Library.Clean.AdditionalService
 {
     /// <summary>
     /// RabbitMQ implementation of message publisher

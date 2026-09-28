@@ -122,9 +122,23 @@ namespace Core.API.Clean.AdditionalService
             }
         }
 
-        public Task RemoveAllByPatternAsync(string pattern, CancellationToken cancellationToken = default)
+        public async Task RemoveAllByPatternAsync(string pattern, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            try
+            {
+                await _circuitBreakerService.ExecuteAsync(ServiceKey, async () =>
+                {
+                    await _innerCacheService.RemoveAllByPatternAsync(pattern, cancellationToken);
+                }, cancellationToken);
+            }
+            catch (BrokenCircuitException)
+            {
+                _logger.LogWarning("Circuit breaker is open for Redis cache, skipping cache pattern removal: {Pattern}", pattern);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in cache service RemoveByPatternAsync for pattern: {Pattern}", pattern);
+            }
         }
     }
 }

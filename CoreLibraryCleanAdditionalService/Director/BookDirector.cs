@@ -2,6 +2,8 @@
 
 namespace Core.Library.Clean.AdditionalService
 {
+    /// BookDirector NEED NOT TO HANDLE EXCEPTION
+    /// ALL OTHER SERVICES SUCH AS DBCONTEXT, CACHE, MESSAGING, MUST HANDLE EXCEPTION and CANNOT FAIL DIRECTOR
     public class BookDirector : IEntityDirector<BookDTO, BookCreateDTO>
     {
         private readonly IUnitOfWork unitOfWork;
@@ -19,136 +21,100 @@ namespace Core.Library.Clean.AdditionalService
 
         public async Task<IEnumerable<BookDTO>> GetEntitiesAsync(CancellationToken cancellationToken)
         {
-            try
+            var cacheKey = "book:all";
+            var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
+
+            if (cachedBooks != null)
             {
-                var cacheKey = "book:all";
-                var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
-                
-                if (cachedBooks != null)
-                {
-                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
-                    return cachedBooks;
-                }
-
-                var books = await unitOfWork.BookRepository.GetEntitiesAsync(cancellationToken);
-
-                if (books == null)
-                {
-                    return null;
-                }
-                else
-                {
-                    var bookDTOs = books.Select(BookMapper.BookToBookDTO);
-                    await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(30), cancellationToken);
-                    return bookDTOs;
-                }
+                logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                return cachedBooks;
             }
-            catch (Exception ex)
+
+            var books = await unitOfWork.BookRepository.GetEntitiesAsync(cancellationToken);
+
+            if (books == null)
             {
-                logger.LogError(ex, "Error in GetEntitiesAsync, falling back to database");
-                var books = await unitOfWork.BookRepository.GetEntitiesAsync(cancellationToken);
-                return books?.Select(BookMapper.BookToBookDTO);
+                return null;
+            }
+            else
+            {
+                var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+                await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(30), cancellationToken);
+                return bookDTOs;
             }
         }
 
         public async Task<BookDTO> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
         {
-            try
+            var cacheKey = $"book:{entityId}";
+            var cachedBook = await cacheService.GetAsync<BookDTO>(cacheKey, cancellationToken);
+
+            if (cachedBook != null)
             {
-                var cacheKey = $"book:{entityId}";
-                var cachedBook = await cacheService.GetAsync<BookDTO>(cacheKey, cancellationToken);
-                
-                if (cachedBook != null)
-                {
-                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
-                    return cachedBook;
-                }
-
-                var book = await unitOfWork.BookRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
-
-                if (book == null)
-                {
-                    return null;
-                }
-                else
-                {
-                    var bookDTO = BookMapper.BookToBookDTO(book);
-                    await cacheService.SetAsync(cacheKey, bookDTO, TimeSpan.FromMinutes(60), cancellationToken);
-                    return bookDTO;
-                }
+                logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                return cachedBook;
             }
-            catch (Exception ex)
+
+            var book = await unitOfWork.BookRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
+
+            if (book == null)
             {
-                logger.LogError(ex, "Error in GetEntityByIdAsync, falling back to database");
-                var book = await unitOfWork.BookRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
-                return book != null ? BookMapper.BookToBookDTO(book) : null;
+                return null;
+            }
+            else
+            {
+                var bookDTO = BookMapper.BookToBookDTO(book);
+                await cacheService.SetAsync(cacheKey, bookDTO, TimeSpan.FromMinutes(60), cancellationToken);
+                return bookDTO;
             }
         }
 
         public async Task<IEnumerable<BookDTO>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
         {
-            try
+            var cacheKey = $"book:search:{searchValue}";
+            var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
+
+            if (cachedBooks != null)
             {
-                var cacheKey = $"book:search:{searchValue}";
-                var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
-                
-                if (cachedBooks != null)
-                {
-                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
-                    return cachedBooks;
-                }
-
-                var books = await unitOfWork.BookRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
-
-                if (books == null)
-                {
-                    return null;
-                }
-                else
-                {
-                    var bookDTOs = books.Select(BookMapper.BookToBookDTO);
-                    await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(15), cancellationToken);
-                    return bookDTOs;
-                }
+                logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                return cachedBooks;
             }
-            catch (Exception ex)
+
+            var books = await unitOfWork.BookRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
+
+            if (books == null)
             {
-                logger.LogError(ex, "Error in SearchEntitiesAsync, falling back to database");
-                var books = await unitOfWork.BookRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
-                return books?.Select(BookMapper.BookToBookDTO);
+                return null;
+            }
+            else
+            {
+                var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+                await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(15), cancellationToken);
+                return bookDTOs;
             }
         }
         public async Task<IEnumerable<BookDTO>> SearchEntitiesByForeignIdAsync(string personId, CancellationToken cancellationToken)
         {
-            try
+            var cacheKey = $"book:person:{personId}";
+            var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
+
+            if (cachedBooks != null)
             {
-                var cacheKey = $"book:person:{personId}";
-                var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
-                
-                if (cachedBooks != null)
-                {
-                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
-                    return cachedBooks;
-                }
-
-                var books = await unitOfWork.BookRepository.SearchEntitiesByForeignIdAsync(personId, cancellationToken).ConfigureAwait(false);
-
-                if (books == null)
-                {
-                    return null;
-                }
-                else
-                {
-                    var bookDTOs = books.Select(BookMapper.BookToBookDTO);
-                    await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(30), cancellationToken);
-                    return bookDTOs;
-                }
+                logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                return cachedBooks;
             }
-            catch (Exception ex)
+
+            var books = await unitOfWork.BookRepository.SearchEntitiesByForeignIdAsync(personId, cancellationToken).ConfigureAwait(false);
+
+            if (books == null)
             {
-                logger.LogError(ex, "Error in SearchEntitiesByForeignIdAsync, falling back to database");
-                var books = await unitOfWork.BookRepository.SearchEntitiesByForeignIdAsync(personId, cancellationToken).ConfigureAwait(false);
-                return books?.Select(BookMapper.BookToBookDTO);
+                return null;
+            }
+            else
+            {
+                var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+                await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(30), cancellationToken);
+                return bookDTOs;
             }
         }
 
@@ -162,8 +128,9 @@ namespace Core.Library.Clean.AdditionalService
 
                 if (result > 0)
                 {
+                    // This may also required for search case implementation
                     // Invalidate cache
-                    await InvalidateBookCacheAsync(entityId, cancellationToken);
+                    await InvalidateBookCacheForSingleEntityAsync(entityId, cancellationToken);
                     
                     // Publish message
                     var message = new BookUpdatedMessage
@@ -173,6 +140,7 @@ namespace Core.Library.Clean.AdditionalService
                         Timestamp = DateTime.UtcNow,
                         CorrelationId = Guid.NewGuid().ToString()
                     };
+
                     await messagePublisher.PublishAsync(message, cancellationToken).ConfigureAwait(false);
                 }
 
@@ -193,8 +161,8 @@ namespace Core.Library.Clean.AdditionalService
                 if (result > 0)
                 {
                     // Invalidate all book cache
-                    await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
-                    
+                    await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
+
                     // Publish messages
                     var messages = bookEntities.Select(b => new BookUpdatedMessage
                     {
@@ -203,6 +171,7 @@ namespace Core.Library.Clean.AdditionalService
                         Timestamp = DateTime.UtcNow,
                         CorrelationId = Guid.NewGuid().ToString()
                     });
+
                     await messagePublisher.PublishAsync(messages, cancellationToken).ConfigureAwait(false);
                 }
 
@@ -223,6 +192,7 @@ namespace Core.Library.Clean.AdditionalService
                 if (result != null)
                 {
                     // Invalidate book list cache
+                    // This may also required for search case implementation, but individual items
                     await cacheService.RemoveAsync("book:all", cancellationToken);
                     
                     // Publish message
@@ -253,8 +223,8 @@ namespace Core.Library.Clean.AdditionalService
                 if (result != null)
                 {
                     // Invalidate all book cache
-                    await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
-                    
+                    await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
+
                     // Publish messages
                     var messages = result.Select(b => new BookCreatedMessage
                     {
@@ -279,7 +249,7 @@ namespace Core.Library.Clean.AdditionalService
             if (result > 0)
             {
                 // Invalidate cache
-                await InvalidateBookCacheAsync(entityId, cancellationToken);
+                await InvalidateBookCacheForSingleEntityAsync(entityId, cancellationToken);
             }
 
             return result;
@@ -292,7 +262,7 @@ namespace Core.Library.Clean.AdditionalService
             if (result > 0)
             {
                 // Invalidate all book cache
-                await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
+                await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
             }
 
             return result;
@@ -311,7 +281,7 @@ namespace Core.Library.Clean.AdditionalService
                 if (result != null)
                 {
                     // Invalidate all book cache
-                    await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
+                    await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
                     return result.Select(BookMapper.BookToBookDTO);
                 }
             }
@@ -319,10 +289,27 @@ namespace Core.Library.Clean.AdditionalService
             return null;
         }
 
-        private async Task InvalidateBookCacheAsync(string bookId, CancellationToken cancellationToken)
+        /// <summary>
+        /// This should be used to Invalidate Book Cache For a SINGLE Entity UPDATE, DELETE, CREATE
+        /// When book with id 123 UPDATED 1. book:123  → now stale 2. book:all  → may contain the old version of book 123
+        /// When book with id 123 DELETED 1. book:123  → now deleted 2. book:all  → list could still contain the deleted book 123
+        /// When book with id 123 CREATED 1. book:all  → list will NOT contain the new book 123, so needs to be removed for book referesh 
+        /// </summary>
+        private async Task InvalidateBookCacheForSingleEntityAsync(string bookId, CancellationToken cancellationToken)
         {
             await cacheService.RemoveAsync($"book:{bookId}", cancellationToken);
             await cacheService.RemoveAsync("book:all", cancellationToken);
+        }
+
+        /// <summary>
+        /// This should be used to Invalidate Book Cache For a MULTIPLE Entity UPDATE, DELETE, CREATE
+        /// Cache entries could become stale after ACTION
+        /// Something has changed across the Book collection. I don't know which individual cached Book keys exist, so invalidate all Book-related cache entries.
+        /// </summary>
+        private async Task InvalidateBookCacheForMultipleEntityAsync(CancellationToken cancellationToken)
+        {
+            //book:* => book:serach:key + book:all + book:bookId
+            await cacheService.RemoveByPatternAsync("book:*", cancellationToken);
         }
     }
 }

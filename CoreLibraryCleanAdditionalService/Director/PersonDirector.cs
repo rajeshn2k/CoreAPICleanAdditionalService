@@ -2,163 +2,123 @@
 
 namespace Core.Library.Clean.AdditionalService
 {
+    /// <summary>
+    /// PersonDirector NEED NOT TO HANDLE EXCEPTION
+    /// ALL OTHER SERVICES SUCH AS DBCONTEXT, CACHE, MESSAGING, MUST HANDLE EXCEPTION and CANNOT FAIL DIRECTOR
+    /// </summary>
     public class PersonDirector : IEntityDirector<PersonDTO, PersonCreateDTO>
     {
         private readonly IUnitOfWork unitOfWork;
         private readonly IMessagePublisher messagePublisher;
         private readonly ICacheService cacheService;
         private readonly ILogger<PersonDirector> logger;
+        private readonly BookDirector bookDirector;
 
-        public PersonDirector(IUnitOfWork unitOfWork, IMessagePublisher messagePublisher, ICacheService cacheService, ILogger<PersonDirector> logger)
+        public PersonDirector(IUnitOfWork unitOfWork, IMessagePublisher messagePublisher, ICacheService cacheService,
+            ILogger<PersonDirector> logger, BookDirector bookDirector)
         {
             this.unitOfWork = unitOfWork;
             this.messagePublisher = messagePublisher;
             this.cacheService = cacheService;
             this.logger = logger;
+            this.bookDirector = bookDirector;
         }
 
         public async Task<IEnumerable<PersonDTO>> GetEntitiesAsync(CancellationToken cancellationToken)
         {
-            try
+            var cacheKey = "person:all";
+            var cachedPersons = await cacheService.GetAsync<IEnumerable<PersonDTO>>(cacheKey, cancellationToken);
+
+            if (cachedPersons != null)
             {
-                var cacheKey = "person:all";
-                var cachedPersons = await cacheService.GetAsync<IEnumerable<PersonDTO>>(cacheKey, cancellationToken);
-                
-                if (cachedPersons != null)
-                {
-                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
-                    return cachedPersons;
-                }
-
-                var persons = await unitOfWork.PersonRepository.GetEntitiesAsync(cancellationToken);
-
-                if (persons != null)
-                {
-                    var personDTOs = persons.Select(PersonMapper.PersonToPersonDTO);
-                    await cacheService.SetAsync(cacheKey, personDTOs, TimeSpan.FromMinutes(30), cancellationToken);
-                    return personDTOs;
-                }
-
-                return null;
+                logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                return cachedPersons;
             }
-            catch (Exception ex)
+
+            var persons = await unitOfWork.PersonRepository.GetEntitiesAsync(cancellationToken);
+
+            if (persons != null)
             {
-                logger.LogError(ex, "Error in GetEntitiesAsync, falling back to database");
-                var persons = await unitOfWork.PersonRepository.GetEntitiesAsync(cancellationToken);
-                return persons?.Select(PersonMapper.PersonToPersonDTO);
+                var personDTOs = persons.Select(PersonMapper.PersonToPersonDTO);
+                await cacheService.SetAsync(cacheKey, personDTOs, TimeSpan.FromMinutes(30), cancellationToken);
+                return personDTOs;
             }
+
+            return null;
         }
 
         public async Task<PersonDTO> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
         {
-            try
+            var cacheKey = $"person:{entityId}";
+            var cachedPerson = await cacheService.GetAsync<PersonDTO>(cacheKey, cancellationToken);
+
+            if (cachedPerson != null)
             {
-                var cacheKey = $"person:{entityId}";
-                var cachedPerson = await cacheService.GetAsync<PersonDTO>(cacheKey, cancellationToken);
-                
-                if (cachedPerson != null)
-                {
-                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
-                    return cachedPerson;
-                }
-
-                var result = await unitOfWork.PersonRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
-
-                if (result != null)
-                {
-                    var personDTO = PersonMapper.PersonToPersonDTO(result);
-                    await cacheService.SetAsync(cacheKey, personDTO, TimeSpan.FromMinutes(60), cancellationToken);
-                    return personDTO;
-                }
-
-                return null;
+                logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                return cachedPerson;
             }
-            catch (Exception ex)
+
+            var result = await unitOfWork.PersonRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
+
+            if (result != null)
             {
-                logger.LogError(ex, "Error in GetEntityByIdAsync, falling back to database");
-                var result = await unitOfWork.PersonRepository.GetEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
-                return result != null ? PersonMapper.PersonToPersonDTO(result) : null;
+                var personDTO = PersonMapper.PersonToPersonDTO(result);
+                await cacheService.SetAsync(cacheKey, personDTO, TimeSpan.FromMinutes(60), cancellationToken);
+                return personDTO;
             }
+
+            return null;
         }
 
         public async Task<IEnumerable<PersonDTO>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
         {
-            try
+            var cacheKey = $"person:search:{searchValue}";
+            var cachedPersons = await cacheService.GetAsync<IEnumerable<PersonDTO>>(cacheKey, cancellationToken);
+
+            if (cachedPersons != null)
             {
-                var cacheKey = $"person:search:{searchValue}";
-                var cachedPersons = await cacheService.GetAsync<IEnumerable<PersonDTO>>(cacheKey, cancellationToken);
-                
-                if (cachedPersons != null)
-                {
-                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
-                    return cachedPersons;
-                }
-
-                var results = await unitOfWork.PersonRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
-
-                if (results != null)
-                {
-                    var personDTOs = results.Select(PersonMapper.PersonToPersonDTO);
-                    await cacheService.SetAsync(cacheKey, personDTOs, TimeSpan.FromMinutes(15), cancellationToken);
-                    return personDTOs;
-                }
-
-                return null;
+                logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                return cachedPersons;
             }
-            catch (Exception ex)
+
+            var results = await unitOfWork.PersonRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
+
+            if (results != null)
             {
-                logger.LogError(ex, "Error in SearchEntitiesAsync, falling back to database");
-                var results = await unitOfWork.PersonRepository.SearchEntitiesAsync(searchValue, cancellationToken).ConfigureAwait(false);
-                return results?.Select(PersonMapper.PersonToPersonDTO);
+                var personDTOs = results.Select(PersonMapper.PersonToPersonDTO);
+                await cacheService.SetAsync(cacheKey, personDTOs, TimeSpan.FromMinutes(15), cancellationToken);
+                return personDTOs;
             }
+
+            return null;
         }
 
         public async Task<IEnumerable<PersonDTO>> SearchEntitiesByForeignIdAsync(string bookId, CancellationToken cancellationToken)
         {
-            try
+            var cacheKey = $"person:book:{bookId}";
+            var cachedPersons = await cacheService.GetAsync<IEnumerable<PersonDTO>>(cacheKey, cancellationToken);
+
+            if (cachedPersons != null)
             {
-                var cacheKey = $"person:book:{bookId}";
-                var cachedPersons = await cacheService.GetAsync<IEnumerable<PersonDTO>>(cacheKey, cancellationToken);
-                
-                if (cachedPersons != null)
-                {
-                    logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
-                    return cachedPersons;
-                }
-
-                var book = await unitOfWork.BookRepository.GetEntityByIdAsync(bookId, cancellationToken).ConfigureAwait(false);
-
-                if (book != null)
-                {
-                    var result = await unitOfWork.PersonRepository.GetEntityByIdAsync(book.personId, cancellationToken).ConfigureAwait(false);
-
-                    if (result != null)
-                    {
-                        var personDTOs = new[] { PersonMapper.PersonToPersonDTO(result) };
-                        await cacheService.SetAsync(cacheKey, personDTOs, TimeSpan.FromMinutes(30), cancellationToken);
-                        return personDTOs;
-                    }
-                }
-
-                return null;
+                logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+                return cachedPersons;
             }
-            catch (Exception ex)
+
+            var book = await bookDirector.GetEntityByIdAsync(bookId, cancellationToken).ConfigureAwait(false);
+
+            if (book != null)
             {
-                logger.LogError(ex, "Error in SearchEntitiesByForeignIdAsync, falling back to database");
-                var book = await unitOfWork.BookRepository.GetEntityByIdAsync(bookId, cancellationToken).ConfigureAwait(false);
+                var result = await GetEntityByIdAsync(book.personId, cancellationToken).ConfigureAwait(false);
 
-                if (book != null)
+                if (result != null)
                 {
-                    var result = await unitOfWork.PersonRepository.GetEntityByIdAsync(book.personId, cancellationToken).ConfigureAwait(false);
-
-                    if (result != null)
-                    {
-                        return new[] { PersonMapper.PersonToPersonDTO(result) };
-                    }
+                    var personDTOs = new[] { result };
+                    await cacheService.SetAsync(cacheKey, personDTOs, TimeSpan.FromMinutes(30), cancellationToken);
+                    return personDTOs;
                 }
-
-                return null;
             }
+
+            return null;
         }
 
         public async Task<long> UpdateEntityByIdAsync(string entityId, PersonDTO person, CancellationToken cancellationToken)
@@ -173,7 +133,7 @@ namespace Core.Library.Clean.AdditionalService
                 {
                     // Invalidate cache
                     await InvalidatePersonCacheAsync(entityId, cancellationToken);
-                    
+
                     // Publish message
                     var message = new PersonUpdatedMessage
                     {
@@ -203,7 +163,7 @@ namespace Core.Library.Clean.AdditionalService
                 {
                     // Invalidate all person cache
                     await cacheService.RemoveByPatternAsync("person:*", cancellationToken);
-                    
+
                     // Publish messages
                     var messages = personEntities.Select(p => new PersonUpdatedMessage
                     {
@@ -233,7 +193,7 @@ namespace Core.Library.Clean.AdditionalService
                 {
                     // Invalidate person list cache
                     await cacheService.RemoveAsync("person:all", cancellationToken);
-                    
+
                     // Publish message
                     var message = new PersonCreatedMessage
                     {
@@ -263,7 +223,7 @@ namespace Core.Library.Clean.AdditionalService
                 {
                     // Invalidate all person cache
                     await cacheService.RemoveByPatternAsync("person:*", cancellationToken);
-                    
+
                     // Publish messages
                     var messages = result.Select(p => new PersonCreatedMessage
                     {

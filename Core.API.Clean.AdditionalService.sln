@@ -6,14 +6,30 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NOTES", "NOTES", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 	ProjectSection(SolutionItems) = preProject
 		NOTES\.Net10Issue.txt = NOTES\.Net10Issue.txt
+		AGENTS.md = AGENTS.md
+		ARCHITECTURE.md = ARCHITECTURE.md
+		DEVELOPMENT_GUIDELINES.md = DEVELOPMENT_GUIDELINES.md
+		DEVELOPMENT_ROADMAP.md = DEVELOPMENT_ROADMAP.md
 		NOTES\Git.txt = NOTES\Git.txt
+		IMPLEMENTATION_SUMMARY.md = IMPLEMENTATION_SUMMARY.md
 		NOTES\Packages.txt = NOTES\Packages.txt
+		PHASE_0_API_RESPONSE_MODEL_SPEC.md = PHASE_0_API_RESPONSE_MODEL_SPEC.md
+		PHASE_1_REDIS_CACHE_SPEC.md = PHASE_1_REDIS_CACHE_SPEC.md
+		PHASE_2_RABBITMQ_MESSAGING_SPEC.md = PHASE_2_RABBITMQ_MESSAGING_SPEC.md
+		PHASE_4_CIRCUIT_BREAKER_SPEC.md = PHASE_4_CIRCUIT_BREAKER_SPEC.md
+		PHASE_5_RATE_LIMITING_SPEC.md = PHASE_5_RATE_LIMITING_SPEC.md
+		PROJECT_SPEC.md = PROJECT_SPEC.md
 		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.API.Clean.AdditionalService", "CoreAPICleanAdditionalService\Core.API.Clean.AdditionalService.csproj", "{42CAAF1B-B120-B369-B62D-406EA7BD75F0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Library.Clean.AdditionalService", "CoreLibraryCleanAdditionalService\Core.Library.Clean.AdditionalService.csproj", "{1ADB8301-82DB-66A3-E3BB-7C592449C296}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".devin", ".devin", "{782D4755-F57F-4596-9496-ECCB07B573DD}"
+	ProjectSection(SolutionItems) = preProject
+		.devin\constitution.md = .devin\constitution.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

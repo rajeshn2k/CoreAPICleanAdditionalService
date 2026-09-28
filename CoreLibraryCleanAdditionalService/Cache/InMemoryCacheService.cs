@@ -1,10 +1,13 @@
-using Core.Library.Clean.AdditionalService;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Core.API.Clean.AdditionalService
+namespace Core.Library.Clean.AdditionalService
 {
     /// <summary>
     /// In-memory fallback cache service when Redis is unavailable
+    /// Redis implementation of cache service
+    /// CircuitBreakerCacheService will handle the exception
+    /// Having exception handler here will force, Retry won't happen and Circuit breaker won't open
     /// </summary>
     public class InMemoryCacheService : ICacheService
     {
@@ -26,6 +29,11 @@ namespace Core.API.Clean.AdditionalService
             await _lock.WaitAsync(cancellationToken);
             try
             {
+                //if (key != null)
+                //{
+                //    throw new Exception("rajesh nandhan memory cache fails");
+                //}
+
                 if (_cache.TryGetValue(key, out var entry))
                 {
                     if (entry.Expiration > DateTime.UtcNow)

@@ -1,10 +1,7 @@
 ﻿using Core.Library.Clean.AdditionalService;
-using Core.API.Clean.AdditionalService;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Linq;
 using Polly;
 
 namespace Core.API.Clean.AdditionalService
