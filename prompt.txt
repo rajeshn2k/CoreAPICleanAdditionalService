@@ -1,0 +1,927 @@
+Objective
+Migrate the application's custom Polly-based resilience implementation for RabbitMQ and Redis to the modern Microsoft.Extensions.Resilience + Polly ResiliencePipeline model.
+
+The resilience implementation must support:
+
+Retry
+
+Circuit Breaker
+
+Timeout
+
+for:
+
+RabbitMQ operations
+
+Redis operations
+
+Also remove Microsoft.Extensions.Http.Polly because it is not required for this migration.
+
+Do NOT use Microsoft.Extensions.Http.Resilience for RabbitMQ or Redis. Microsoft.Extensions.Http.Resilience is intended for HttpClient resilience. For RabbitMQ and Redis, use Microsoft.Extensions.Resilience and Polly ResiliencePipeline.
+
+Current project
+The main project is a .NET 10 Web API project:
+
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>disable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Asp.Versioning.Mvc" Version="10.2.1" />
+        <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.2.1" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.11">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+        <PackageReference Include="Serilog" Version="4.4.0" />
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.3" />
+        <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.11" />
+        <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
+        <PackageReference Include="Polly" Version="8.4.0" />
+        <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="10.0.11" />
+        <PackageReference Include="AspNetCoreRateLimit" Version="5.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Controllers\" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CoreLibraryCleanAdditionalService\Core.Library.Clean.AdditionalService.csproj" />
+    </ItemGroup>
+
+</Project>
+
+There may be related resilience code in the referenced CoreLibraryCleanAdditionalService project. Inspect the entire solution before making changes.
+
+Existing RabbitMQ implementation
+There is currently a custom abstraction similar to:
+
+public interface ICircuitBreakerService
+{
+    Task<T> ExecuteAsync<T>(
+        string serviceKey,
+        Func<Task<T>> action,
+        CancellationToken cancellationToken = default);
+
+    Task ExecuteAsync(
+        string serviceKey,
+        Func<Task> action,
+        CancellationToken cancellationToken = default);
+
+    CircuitBreakerState GetState(string serviceKey);
+}
+
+public enum CircuitBreakerState
+{
+    Closed,
+    Open,
+    HalfOpen
+}
+
+There is also a custom implementation similar to:
+
+public class CircuitBreakerService : ICircuitBreakerService
+{
+    private readonly ILogger<CircuitBreakerService> _logger;
+    private readonly Dictionary<string, IAsyncPolicy> _policies;
+    private readonly Dictionary<string, CircuitBreakerState> _states;
+
+    // ...
+}
+
+and a custom:
+
+public static class CircuitBreakerPolicyFactory
+{
+    public static IAsyncPolicy CreateCircuitBreakerPolicy(...)
+
+    public static IAsyncPolicy CreateRetryPolicy(...)
+
+    public static IAsyncPolicy CreateTimeoutPolicy(...)
+}
+
+There is also a decorator similar to:
+
+public class CircuitBreakerMessagePublisher : IMessagePublisher
+{
+    private readonly IMessagePublisher _innerMessagePublisher;
+    private readonly ICircuitBreakerService _circuitBreakerService;
+    private readonly ILogger<CircuitBreakerMessagePublisher> _logger;
+
+    private const string ServiceKey = "RabbitMQ";
+
+    // PublishAsync implementations...
+}
+
+The current decorator wraps the real RabbitMQ publisher.
+
+Required architecture
+Replace the custom policy/service architecture with named Polly resilience pipelines registered through Microsoft.Extensions.Resilience.
+
+The desired architecture is:
+
+Application
+    |
+    +-----------------------------+
+    |                             |
+    v                             v
+RabbitMQ                       Redis
+    |                             |
+    v                             v
+Resilient decorator/service    Resilient service/decorator
+    |                             |
+    v                             v
+ResiliencePipeline            ResiliencePipeline
+    |                             |
+    +-----------------------------+
+                  |
+       +----------+----------+
+       |          |          |
+      Retry   Circuit     Timeout
+              Breaker
+       |          |          |
+       +----------+----------+
+                  |
+                  v
+         Actual RabbitMQ/Redis
+
+Use separate named pipelines:
+
+RabbitMQ
+Redis
+
+Do not create a global shared circuit breaker between Redis and RabbitMQ.
+
+Failures in RabbitMQ must not open the Redis circuit and vice versa.
+
+Package requirements
+Modify the project/package references appropriately.
+
+Remove:
+
+<PackageReference Include="Microsoft.Extensions.Http.Polly"
+                  Version="10.0.11" />
+
+Do NOT replace it with Microsoft.Extensions.Http.Resilience unless the solution actually contains HttpClient resilience that requires it.
+
+For RabbitMQ and Redis use:
+
+<PackageReference Include="Microsoft.Extensions.Resilience" Version="10.0.11" />
+
+Retain Polly as required by the Microsoft.Extensions.Resilience dependency model.
+
+Before changing the explicitly referenced Polly version, inspect the entire solution and dependency graph.
+
+Do not arbitrarily upgrade unrelated packages.
+
+Keep the existing versions of:
+
+EF Core
+
+RabbitMQ.Client
+
+StackExchange.Redis
+
+Serilog
+
+Swagger
+
+Asp.Versioning
+
+AspNetCoreRateLimit
+
+unless a build/dependency conflict makes a change necessary.
+
+If a Polly version update is necessary for compatibility, make the smallest compatible change and explain it in the migration summary.
+
+Resilience pipeline configuration
+Create centralized configuration for resilience pipelines.
+
+Use:
+
+builder.Services.AddResiliencePipeline("RabbitMQ", pipeline =>
+{
+    // retry
+    // circuit breaker
+    // timeout
+});
+
+builder.Services.AddResiliencePipeline("Redis", pipeline =>
+{
+    // retry
+    // circuit breaker
+    // timeout
+});
+
+Use Polly 8 ResiliencePipeline APIs.
+
+Do NOT use:
+
+IAsyncPolicy
+Policy.Handle<Exception>()
+CircuitBreakerAsync()
+WaitAndRetryAsync()
+TimeoutAsync()
+
+Do NOT recreate the old CircuitBreakerService.
+
+Do NOT maintain custom dictionaries such as:
+
+Dictionary<string, IAsyncPolicy>
+Dictionary<string, CircuitBreakerState>
+
+Do NOT maintain a second custom circuit state machine.
+
+The resilience pipeline itself must own the circuit state.
+
+Retry configuration
+Configure retry using the modern:
+
+RetryStrategyOptions
+
+Use exponential backoff and jitter.
+
+Example baseline:
+
+new RetryStrategyOptions
+{
+    MaxRetryAttempts = 3,
+    Delay = TimeSpan.FromSeconds(1),
+    BackoffType = DelayBackoffType.Exponential,
+    UseJitter = true
+}
+
+Adjust the values only if existing application configuration clearly specifies different retry behavior.
+
+Do not retry cancellation exceptions.
+
+Do not retry errors that should not be retried if the existing code or client library allows those errors to be distinguished.
+
+For RabbitMQ and Redis, prefer transient-failure handling rather than blindly retrying every possible exception.
+
+If exception predicates need to be customized, document why.
+
+Circuit breaker configuration
+Use:
+
+CircuitBreakerStrategyOptions
+
+Do NOT translate the old:
+
+exceptionsAllowedBeforeBreaking
+
+directly into MinimumThroughput.
+
+These are different circuit breaker models.
+
+Use a configuration similar to:
+
+new CircuitBreakerStrategyOptions
+{
+    FailureRatio = 0.5,
+    MinimumThroughput = 10,
+    SamplingDuration = TimeSpan.FromSeconds(30),
+    BreakDuration = TimeSpan.FromSeconds(30)
+}
+
+Treat these as baseline values, not unquestionable requirements.
+
+If the existing application has explicit production settings for failure thresholds, preserve their intent and map them appropriately to the new failure-ratio model.
+
+Add structured logging/telemetry for:
+
+circuit opened
+
+circuit reset/closed
+
+circuit half-open
+
+Do not maintain custom CircuitBreakerState dictionaries.
+
+Timeout configuration
+Use:
+
+TimeoutStrategyOptions
+
+Example baseline:
+
+new TimeoutStrategyOptions
+{
+    Timeout = TimeSpan.FromSeconds(10)
+}
+
+Do not use the old:
+
+Policy.TimeoutAsync(...)
+
+Ensure cancellation tokens are propagated correctly.
+
+Pipeline ordering
+Explicitly decide and document the strategy order.
+
+A reasonable baseline is:
+
+Retry
+  |
+  v
+Circuit Breaker
+  |
+  v
+Timeout
+  |
+  v
+Actual Redis/RabbitMQ operation
+
+However, verify the actual Polly pipeline execution semantics and ensure the resulting behavior matches the intended application behavior.
+
+Do not assume that simply listing strategies means the runtime execution order is the same as the source-code order.
+
+Document the final effective order.
+
+RabbitMQ decorator
+Keep the Decorator Pattern.
+
+The desired design is:
+
+IMessagePublisher
+        |
+        v
+ResilientMessagePublisher
+        |
+        v
+RabbitMqMessagePublisher
+        |
+        v
+RabbitMQ
+
+The application should depend on:
+
+IMessagePublisher
+
+not the concrete resilient implementation.
+
+The resilient decorator should inject:
+
+ResiliencePipelineProvider<string>
+
+and obtain:
+
+pipelineProvider.GetPipeline("RabbitMQ")
+
+Do not inject ICircuitBreakerService.
+
+Do not create a new pipeline for every message.
+
+The pipeline must be configured once through DI and reused.
+
+RabbitMQ decorator implementation
+Refactor the current decorator into something similar to:
+
+public sealed class ResilientMessagePublisher : IMessagePublisher
+{
+    private const string PipelineKey = "RabbitMQ";
+
+    private readonly IMessagePublisher _innerMessagePublisher;
+    private readonly ResiliencePipeline _pipeline;
+    private readonly ILogger<ResilientMessagePublisher> _logger;
+
+    public ResilientMessagePublisher(
+        IMessagePublisher innerMessagePublisher,
+        ResiliencePipelineProvider<string> pipelineProvider,
+        ILogger<ResilientMessagePublisher> logger)
+    {
+        _innerMessagePublisher = innerMessagePublisher;
+        _pipeline = pipelineProvider.GetPipeline(PipelineKey);
+        _logger = logger;
+    }
+
+    // Implement all IMessagePublisher methods.
+}
+
+For each publish operation use the cancellation-aware overload:
+
+await _pipeline.ExecuteAsync(
+    async token =>
+    {
+        await _innerMessagePublisher.PublishAsync(
+            message,
+            token);
+    },
+    cancellationToken);
+
+The cancellation token must flow through:
+
+Caller
+  |
+  v
+ResiliencePipeline
+  |
+  v
+RabbitMQ publisher
+
+Do not silently discard the supplied cancellation token.
+
+RabbitMQ failure behavior
+Pay particular attention to this existing behavior:
+
+catch (BrokenCircuitException)
+{
+    logger.LogWarning(...);
+}
+
+Do NOT silently return success after a message was not published unless the application's existing messaging semantics explicitly require best-effort fire-and-forget behavior.
+
+Prefer:
+
+catch (BrokenCircuitException ex)
+{
+    logger.LogWarning(ex, ...);
+    throw;
+}
+
+This allows the caller to know that publishing failed.
+
+Do not blindly catch:
+
+catch (Exception)
+
+and convert a failed message publish into apparent success.
+
+If the existing application intentionally treats publishing as best-effort, preserve that behavior only after verifying it from the surrounding code and document the decision.
+
+Redis resilience
+Find all Redis operations in the solution.
+
+Inspect:
+
+StackExchange.Redis usage
+
+IConnectionMultiplexer
+
+IDatabase
+
+custom Redis cache services
+
+IDistributedCache
+
+custom caching abstractions
+
+Redis repository/services
+
+any existing Redis retry/circuit breaker logic
+
+Do not blindly wrap the entire IDistributedCache implementation if the application already relies on Microsoft caching infrastructure in a way that makes a decorator inappropriate.
+
+Determine the correct abstraction boundary.
+
+Prefer a Redis-specific resilience wrapper/service where the actual Redis operation can be executed through the pipeline.
+
+Use:
+
+ResiliencePipelineProvider<string>
+
+and:
+
+pipelineProvider.GetPipeline("Redis")
+
+for Redis operations.
+
+The Redis pipeline must be independent from RabbitMQ.
+
+Redis example architecture
+If the solution has a custom Redis abstraction such as:
+
+IRedisService
+
+prefer:
+
+IRedisService
+      |
+      v
+ResilientRedisService
+      |
+      v
+RedisService
+      |
+      v
+StackExchange.Redis
+
+If no custom Redis abstraction exists, first inspect how Redis is currently consumed and introduce the smallest appropriate abstraction/decorator necessary to apply the resilience pipeline.
+
+Do not refactor unrelated Redis code.
+
+Redis cancellation
+Ensure Redis operations use cancellation where the underlying API supports it.
+
+Do not claim cancellation support where StackExchange.Redis APIs do not provide a cancellation-aware operation.
+
+Where an API does not support cancellation directly, do not invent unsafe cancellation behavior.
+
+Exception handling
+Do not use:
+
+catch (Exception ex)
+{
+    logger.LogError(...);
+}
+
+merely to log and suppress infrastructure failures.
+
+Infrastructure failures should normally propagate unless the application's existing contract explicitly says otherwise.
+
+Handle BrokenCircuitException for logging/observability, but preserve the failure semantics unless best-effort behavior is explicitly required.
+
+Do not catch OperationCanceledException and log it as a normal infrastructure failure.
+
+Cancellation should generally propagate naturally.
+
+Logging
+Use structured logging.
+
+Good:
+
+_logger.LogWarning(
+    ex,
+    "RabbitMQ circuit breaker is open. Message was not published. MessageType: {MessageType}",
+    messageType);
+
+Avoid interpolated strings.
+
+Use meaningful event messages for:
+
+retry
+
+circuit opened
+
+circuit reset
+
+circuit half-open
+
+timeout
+
+Do not log sensitive message payloads.
+
+Do not log Redis credentials, connection strings, access tokens, or message bodies.
+
+Configuration
+If retry/circuit/timeout values are currently hard-coded throughout the solution, centralize them.
+
+Prefer configuration options if the existing application already has an appsettings.json / options pattern.
+
+For example, a configuration structure could be:
+
+{
+  "Resilience": {
+    "RabbitMQ": {
+      "Retry": {
+        "MaxRetryAttempts": 3,
+        "DelaySeconds": 1
+      },
+      "CircuitBreaker": {
+        "FailureRatio": 0.5,
+        "MinimumThroughput": 10,
+        "SamplingDurationSeconds": 30,
+        "BreakDurationSeconds": 30
+      },
+      "TimeoutSeconds": 10
+    },
+    "Redis": {
+      "Retry": {
+        "MaxRetryAttempts": 3,
+        "DelaySeconds": 1
+      },
+      "CircuitBreaker": {
+        "FailureRatio": 0.5,
+        "MinimumThroughput": 10,
+        "SamplingDurationSeconds": 30,
+        "BreakDurationSeconds": 30
+      },
+      "TimeoutSeconds": 10
+    }
+  }
+}
+
+Only introduce this configuration structure if it fits the existing application's configuration conventions.
+
+Avoid unnecessary configuration abstraction if the application currently has no need for runtime-configurable resilience settings.
+
+Remove old code
+After migration, search the entire solution for:
+
+ICircuitBreakerService
+CircuitBreakerService
+CircuitBreakerPolicyFactory
+IAsyncPolicy
+Policy.Handle
+CircuitBreakerAsync
+WaitAndRetryAsync
+TimeoutAsync
+Microsoft.Extensions.Http.Polly
+CircuitBreakerState
+
+Remove obsolete code and references.
+
+Do not leave unused compatibility classes behind.
+
+Do not leave duplicate resilience implementations.
+
+HttpClient consideration
+Search the entire solution for:
+
+AddHttpClient
+HttpClient
+Microsoft.Extensions.Http.Polly
+
+If the application does not have HTTP resilience that requires the package, remove:
+
+Microsoft.Extensions.Http.Polly
+
+Do NOT add:
+
+Microsoft.Extensions.Http.Resilience
+
+unless actual HttpClient resilience exists and requires it.
+
+The goal of this task is specifically:
+
+RabbitMQ -> Microsoft.Extensions.Resilience
+Redis    -> Microsoft.Extensions.Resilience
+
+not:
+
+RabbitMQ -> Microsoft.Extensions.Http.Resilience
+Redis    -> Microsoft.Extensions.Http.Resilience
+
+Dependency injection
+Use DI to register the pipelines once.
+
+Do not instantiate:
+
+new ResiliencePipeline(...)
+
+inside message publishing or Redis methods.
+
+Do not create a new pipeline for every operation.
+
+Use:
+
+ResiliencePipelineProvider<string>
+
+for named pipelines.
+
+Expected concept:
+
+DI Container
+    |
+    +-- RabbitMQ ResiliencePipeline
+    |
+    +-- Redis ResiliencePipeline
+    |
+    +-- IMessagePublisher
+    |
+    +-- Redis abstraction/service
+
+Decorator registration
+Ensure the final DI registration actually creates the decorator chain.
+
+Expected RabbitMQ structure:
+
+IMessagePublisher
+       |
+       v
+ResilientMessagePublisher
+       |
+       v
+RabbitMqMessagePublisher
+
+Avoid circular DI.
+
+If the existing registration uses Scrutor or another decorator library, inspect and preserve that mechanism if appropriate.
+
+If no decorator library is used, use an explicit factory registration.
+
+Do not change unrelated service lifetimes without a concrete reason.
+
+Thread safety
+Remove custom mutable dictionaries used for circuit state.
+
+Do not introduce:
+
+Dictionary<string, ...>
+
+for runtime circuit state.
+
+The resilience pipeline must own its concurrency and state management.
+
+Ensure the final implementation is safe for concurrent RabbitMQ and Redis operations.
+
+Testing requirements
+Update or create tests for the new implementation.
+
+At minimum test:
+
+RabbitMQ
+Successful publish passes through.
+
+Transient failures cause retry.
+
+Circuit opens after the configured failure conditions.
+
+Once open, subsequent calls fail fast.
+
+Circuit transitions to half-open according to the configured break duration.
+
+Successful half-open execution closes/resets the circuit.
+
+Cancellation propagates.
+
+Non-circuit exceptions are not silently swallowed.
+
+All IMessagePublisher overloads use the RabbitMQ resilience pipeline.
+
+Redis
+Successful operation passes through.
+
+Transient failures cause retry.
+
+Circuit opens after configured failure conditions.
+
+Open circuit prevents unnecessary Redis calls.
+
+Half-open behavior works.
+
+Successful recovery closes/resets the circuit.
+
+Cancellation behaves correctly where supported.
+
+Redis and RabbitMQ circuit states are independent.
+
+Pipeline isolation
+Verify:
+
+RabbitMQ failure != Redis circuit open
+Redis failure != RabbitMQ circuit open
+
+Build and validation
+After making changes:
+
+Restore packages.
+
+Build the entire solution.
+
+Run all existing tests.
+
+Run the new resilience tests.
+
+Search for obsolete Polly APIs.
+
+Search for Microsoft.Extensions.Http.Polly.
+
+Search for unused ICircuitBreakerService.
+
+Search for custom circuit-state dictionaries.
+
+Verify there are no compilation warnings caused by the migration.
+
+Verify DI startup does not throw.
+
+Verify all IMessagePublisher implementations still satisfy the interface.
+
+Verify existing Redis functionality remains intact.
+
+Do not modify unrelated application behavior.
+
+Important constraints
+Do NOT:
+
+Use Microsoft.Extensions.Http.Resilience for RabbitMQ.
+
+Use Microsoft.Extensions.Http.Resilience for Redis.
+
+Keep Microsoft.Extensions.Http.Polly just in case.
+
+Keep the old ICircuitBreakerService.
+
+Keep CircuitBreakerPolicyFactory.
+
+Keep IAsyncPolicy.
+
+Keep Policy.Handle<Exception>().
+
+Keep custom circuit state dictionaries.
+
+Swallow RabbitMQ/Redis failures without verifying that best-effort semantics are intentional.
+
+Create a new resilience pipeline per request/message.
+
+Mix old Polly policy APIs with the new ResiliencePipeline APIs.
+
+Upgrade unrelated NuGet packages unnecessarily.
+
+Refactor unrelated business logic.
+
+Do:
+
+Use Microsoft.Extensions.Resilience.
+
+Use Polly 8 ResiliencePipeline.
+
+Register named pipelines through DI.
+
+Have separate RabbitMQ and Redis pipelines.
+
+Use Retry + Circuit Breaker + Timeout.
+
+Propagate cancellation tokens.
+
+Preserve the Decorator Pattern for IMessagePublisher.
+
+Keep resilience concerns outside the actual RabbitMQ/Redis implementation.
+
+Use structured logging.
+
+Keep circuit state inside the resilience pipeline.
+
+Add/update tests.
+
+Build and validate the entire solution.
+
+Expected final structure
+The final architecture should approximately look like:
+
+Core API
+│
+├── Program.cs / DI
+│   │
+│   ├── AddResiliencePipeline("RabbitMQ", ...)
+│   └── AddResiliencePipeline("Redis", ...)
+│
+├── AdditionalService
+│   │
+│   ├── IMessagePublisher
+│   ├── RabbitMqMessagePublisher
+│   └── ResilientMessagePublisher
+│
+└── Redis
+    │
+    ├── Existing Redis abstraction
+    └── Resilient Redis wrapper/service
+
+with:
+
+RabbitMQ Pipeline
+    ├── Retry
+    ├── Circuit Breaker
+    └── Timeout
+
+Redis Pipeline
+    ├── Retry
+    ├── Circuit Breaker
+    └── Timeout
+
+Final deliverable
+After completing the migration, provide a concise migration report containing:
+
+Files changed.
+
+Files removed.
+
+NuGet packages added/removed/changed.
+
+Old Polly APIs removed.
+
+New resilience pipelines introduced.
+
+RabbitMQ decorator changes.
+
+Redis resilience changes.
+
+Retry configuration.
+
+Circuit breaker configuration.
+
+Timeout configuration.
+
+Exception/cancellation behavior.
+
+Tests added/updated.
+
+Build/test results.
+
+Any assumptions or areas requiring manual verification.
+
+Do not claim the migration is complete if the solution does not build or tests fail. Report the exact failure and affected project/file instead.

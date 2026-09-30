@@ -6,10 +6,7 @@ public static class Program
 {
     public static void Main(string[] args)
     {
-        string assemblyName =
-            System.Reflection.Assembly.GetExecutingAssembly()
-                .GetName()
-                .Name ?? "AdditionalService";
+        string assemblyName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name ?? "AdditionalService";
 
         var builder = WebApplication.CreateBuilder(args);
 
@@ -19,22 +16,15 @@ public static class Program
 
         string environment = builder.Environment.EnvironmentName;
 
-        builder.Configuration
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile(
-                $"appsettings.{environment}.json",
-                optional: true,
-                reloadOnChange: true);
+        builder.Configuration.SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true);
 
         // ------------------------------------------------------------
         // Kestrel
         // ------------------------------------------------------------
 
-        string kestrelEndpointUrl =
-            builder.Configuration
-                .GetSection("Kestrel:Endpoints:Http:Url")
-                .Value
-            ?? "http://localhost:8080";
+        string kestrelEndpointUrl = builder.Configuration
+                .GetSection("Kestrel:Endpoints:Http:Url").Value ?? "http://localhost:8080";
 
         builder.WebHost.ConfigureKestrel(options =>
         {
@@ -55,8 +45,7 @@ public static class Program
         // Application Services
         // ------------------------------------------------------------
 
-        builder.Services.AddApplicationServices(
-            builder.Configuration);
+        builder.Services.AddApplicationServices(builder.Configuration);
 
         // ------------------------------------------------------------
         // CORS
@@ -114,11 +103,7 @@ public static class Program
             })
             .AddApiExplorer(options =>
             {
-                // Generates groups:
-                //
-                // v1
-                // v2
-                //
+                // Generates groups: (v1)(v2)
                 options.GroupNameFormat = "'v'VVV";
 
                 // Replaces {version:apiVersion} with the
@@ -132,8 +117,7 @@ public static class Program
 
         builder.Services.AddOpenApi("v1", options =>
         {
-            options.ShouldInclude = description =>
-                description.GroupName == "v1";
+            options.ShouldInclude = description => description.GroupName == "v1";
         });
 
         // ------------------------------------------------------------
@@ -142,8 +126,7 @@ public static class Program
 
         builder.Services.AddOpenApi("v2", options =>
         {
-            options.ShouldInclude = description =>
-                description.GroupName == "v2";
+            options.ShouldInclude = description => description.GroupName == "v2";
         });
 
         // ------------------------------------------------------------
