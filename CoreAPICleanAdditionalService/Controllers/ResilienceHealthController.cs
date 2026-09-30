@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Resilience;
+using Polly;
 using Polly.CircuitBreaker;
+using Polly.Registry;
 
 namespace Core.API.Clean.AdditionalService.Controllers
 {

@@ -5,6 +5,10 @@ using StackExchange.Redis;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Resilience;
 using Polly;
+using Polly.CircuitBreaker;
+using Polly.Registry;
+using Polly.Retry;
+using Polly.Timeout;
 
 namespace Core.API.Clean.AdditionalService
 {
@@ -68,7 +72,7 @@ namespace Core.API.Clean.AdditionalService
                 pipelineBuilder.AddRetry(new RetryStrategyOptions
                 {
                     MaxRetryAttempts = resilienceSettings?.Retry.MaxRetryAttempts ?? 3,
-                    Delay = TimeSpan.FromSeconds(resilience?.Retry.DelaySeconds ?? 1),
+                    Delay = TimeSpan.FromSeconds(resilienceSettings?.Retry.DelaySeconds ?? 1),
                     BackoffType = DelayBackoffType.Exponential,
                     UseJitter = true
                 });
@@ -77,8 +81,8 @@ namespace Core.API.Clean.AdditionalService
                 {
                     FailureRatio = resilienceSettings?.CircuitBreaker.FailureRatio ?? 0.5,
                     MinimumThroughput = resilienceSettings?.CircuitBreaker.MinimumThroughput ?? 10,
-                    SamplingDuration = TimeSpan.FromSeconds(resilience?.CircuitBreaker.SamplingDurationSeconds ?? 30),
-                    BreakDuration = TimeSpan.FromSeconds(resilience?.CircuitBreaker.BreakDurationSeconds ?? 30)
+                    SamplingDuration = TimeSpan.FromSeconds(resilienceSettings?.CircuitBreaker.SamplingDurationSeconds ?? 30),
+                    BreakDuration = TimeSpan.FromSeconds(resilienceSettings?.CircuitBreaker.BreakDurationSeconds ?? 30)
                 });
 
                 pipelineBuilder.AddTimeout(new TimeoutStrategyOptions

@@ -2,6 +2,8 @@ using Core.Library.Clean.AdditionalService;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Resilience;
 using Polly;
+using Polly.CircuitBreaker;
+using Polly.Registry;
 
 namespace Core.API.Clean.AdditionalService.Resilience
 {
