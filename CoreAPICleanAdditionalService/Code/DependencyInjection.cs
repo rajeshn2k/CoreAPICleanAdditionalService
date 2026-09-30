@@ -1,7 +1,9 @@
 ﻿using Core.Library.Clean.AdditionalService;
+using Core.API.Clean.AdditionalService.Resilience;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Resilience;
 using Polly;
 
 namespace Core.API.Clean.AdditionalService
@@ -27,68 +29,62 @@ namespace Core.API.Clean.AdditionalService
             services.Configure<ApiResponseSettings>(
                 configuration.GetSection("ApiResponse"));
 
-            // Configure Circuit Breaker settings
-            services.Configure<CircuitBreakerSettings>(
-                configuration.GetSection("CircuitBreaker"));
+            // Configure Resilience settings
+            services.Configure<ResilienceSettings>(
+                configuration.GetSection("Resilience"));
 
-            // Configure and register Circuit Breaker service
-            services.AddSingleton<ICircuitBreakerService>(sp =>
+            // Register RabbitMQ resilience pipeline
+            services.AddResiliencePipeline("RabbitMQ", pipelineBuilder =>
             {
-                var circuitBreakerService = new CircuitBreakerService(sp.GetRequiredService<ILogger<CircuitBreakerService>>());
-
-                var circuitBreakerSettings = configuration.GetSection("CircuitBreaker").Get<CircuitBreakerSettings>();
-
-                var logger = sp.GetRequiredService<ILogger<CircuitBreakerService>>();
-
-                if (circuitBreakerSettings?.Redis != null)
+                var resilienceSettings = configuration.GetSection("Resilience:RabbitMQ").Get<ServiceResilienceSettings>();
+                
+                pipelineBuilder.AddRetry(new RetryStrategyOptions
                 {
-                    var redisPolicy = CircuitBreakerPolicyFactory.CreateCircuitBreakerPolicy(
-                        "RedisCache",
-                        circuitBreakerSettings.Redis.ExceptionsAllowedBeforeBreaking,
-                        TimeSpan.FromSeconds(circuitBreakerSettings.Redis.DurationOfBreakInSeconds),
-                        logger);
+                    MaxRetryAttempts = resilienceSettings?.Retry.MaxRetryAttempts ?? 5,
+                    Delay = TimeSpan.FromSeconds(resilienceSettings?.Retry.DelaySeconds ?? 2),
+                    BackoffType = DelayBackoffType.Exponential,
+                    UseJitter = true
+                });
 
-                    var redisRetryPolicy = CircuitBreakerPolicyFactory.CreateRetryPolicy(
-                        "RedisCache",
-                        circuitBreakerSettings.Redis.RetryCount,
-                        TimeSpan.FromSeconds(circuitBreakerSettings.Redis.RetryDelayInSeconds),
-                        logger);
-
-                    var redisTimeoutPolicy = CircuitBreakerPolicyFactory.CreateTimeoutPolicy(
-                        "RedisCache",
-                        TimeSpan.FromSeconds(circuitBreakerSettings.Redis.TimeoutInSeconds),
-                        logger);
-
-                    var combinedRedisPolicy = Policy.WrapAsync(redisTimeoutPolicy, redisRetryPolicy, redisPolicy);
-
-                    circuitBreakerService.AddPolicy("RedisCache", combinedRedisPolicy);
-                }
-
-                if (circuitBreakerSettings?.RabbitMQ != null)
+                pipelineBuilder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
                 {
-                    var rabbitMQPolicy = CircuitBreakerPolicyFactory.CreateCircuitBreakerPolicy(
-                        "RabbitMQ",
-                        circuitBreakerSettings.RabbitMQ.ExceptionsAllowedBeforeBreaking,
-                        TimeSpan.FromSeconds(circuitBreakerSettings.RabbitMQ.DurationOfBreakInSeconds),
-                        logger);
+                    FailureRatio = resilienceSettings?.CircuitBreaker.FailureRatio ?? 0.5,
+                    MinimumThroughput = resilienceSettings?.CircuitBreaker.MinimumThroughput ?? 10,
+                    SamplingDuration = TimeSpan.FromSeconds(resilienceSettings?.CircuitBreaker.SamplingDurationSeconds ?? 30),
+                    BreakDuration = TimeSpan.FromSeconds(resilienceSettings?.CircuitBreaker.BreakDurationSeconds ?? 60)
+                });
 
-                    var rabbitMQRetryPolicy = CircuitBreakerPolicyFactory.CreateRetryPolicy(
-                        "RabbitMQ",
-                        circuitBreakerSettings.RabbitMQ.RetryCount,
-                        TimeSpan.FromSeconds(circuitBreakerSettings.RabbitMQ.RetryDelayInSeconds),
-                        logger);
+                pipelineBuilder.AddTimeout(new TimeoutStrategyOptions
+                {
+                    Timeout = TimeSpan.FromSeconds(resilienceSettings?.TimeoutSeconds ?? 10)
+                });
+            });
 
-                    var rabbitMQTimeoutPolicy = CircuitBreakerPolicyFactory.CreateTimeoutPolicy(
-                        "RabbitMQ",
-                        TimeSpan.FromSeconds(circuitBreakerSettings.RabbitMQ.TimeoutInSeconds),
-                        logger);
+            // Register Redis resilience pipeline
+            services.AddResiliencePipeline("Redis", pipelineBuilder =>
+            {
+                var resilienceSettings = configuration.GetSection("Resilience:Redis").Get<ServiceResilienceSettings>();
+                
+                pipelineBuilder.AddRetry(new RetryStrategyOptions
+                {
+                    MaxRetryAttempts = resilienceSettings?.Retry.MaxRetryAttempts ?? 3,
+                    Delay = TimeSpan.FromSeconds(resilience?.Retry.DelaySeconds ?? 1),
+                    BackoffType = DelayBackoffType.Exponential,
+                    UseJitter = true
+                });
 
-                    var combinedRabbitMQPolicy = Policy.WrapAsync(rabbitMQTimeoutPolicy, rabbitMQRetryPolicy, rabbitMQPolicy);
+                pipelineBuilder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
+                {
+                    FailureRatio = resilienceSettings?.CircuitBreaker.FailureRatio ?? 0.5,
+                    MinimumThroughput = resilienceSettings?.CircuitBreaker.MinimumThroughput ?? 10,
+                    SamplingDuration = TimeSpan.FromSeconds(resilience?.CircuitBreaker.SamplingDurationSeconds ?? 30),
+                    BreakDuration = TimeSpan.FromSeconds(resilience?.CircuitBreaker.BreakDurationSeconds ?? 30)
+                });
 
-                    circuitBreakerService.AddPolicy("RabbitMQ", combinedRabbitMQPolicy);
-                }
-
-                return circuitBreakerService;
+                pipelineBuilder.AddTimeout(new TimeoutStrategyOptions
+                {
+                    Timeout = TimeSpan.FromSeconds(resilienceSettings?.TimeoutSeconds ?? 5)
+                });
             });
 
             // Configure Cache services
@@ -113,11 +109,10 @@ namespace Core.API.Clean.AdditionalService
                             sp.GetRequiredService<IOptions<CacheSettings>>(),
                             sp.GetRequiredService<ILogger<RedisCacheService>>());
 
-                        var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
+                        var pipelineProvider = sp.GetRequiredService<ResiliencePipelineProvider<string>>();
+                        var logger = sp.GetRequiredService<ILogger<ResilientCacheService>>();
 
-                        var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
-
-                        return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
+                        return new ResilientCacheService(innerCacheService, pipelineProvider, logger);
                     });
                 }
                 catch
@@ -129,11 +124,10 @@ namespace Core.API.Clean.AdditionalService
                             sp.GetRequiredService<IOptions<CacheSettings>>(),
                             sp.GetRequiredService<ILogger<InMemoryCacheService>>());
 
-                        var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
+                        var pipelineProvider = sp.GetRequiredService<ResiliencePipelineProvider<string>>();
+                        var logger = sp.GetRequiredService<ILogger<ResilientCacheService>>();
 
-                        var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
-
-                        return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
+                        return new ResilientCacheService(innerCacheService, pipelineProvider, logger);
                     });
                 }
             }
@@ -145,11 +139,10 @@ namespace Core.API.Clean.AdditionalService
                         sp.GetRequiredService<IOptions<CacheSettings>>(),
                         sp.GetRequiredService<ILogger<InMemoryCacheService>>() );
 
-                    var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
+                    var pipelineProvider = sp.GetRequiredService<ResiliencePipelineProvider<string>>();
+                    var logger = sp.GetRequiredService<ILogger<ResilientCacheService>>();
 
-                    var logger = sp.GetRequiredService<ILogger<CircuitBreakerCacheService>>();
-
-                    return new CircuitBreakerCacheService(innerCacheService, circuitBreakerService, logger);
+                    return new ResilientCacheService(innerCacheService, pipelineProvider, logger);
                 });
             }
 
@@ -157,7 +150,7 @@ namespace Core.API.Clean.AdditionalService
             services.Configure<MessagingSettings>(
                 configuration.GetSection("Messaging"));
 
-            // Register scoped IMessagePublisher with circuit breaker wrapper
+            // Register scoped IMessagePublisher with resilience wrapper
             services.AddScoped<IMessagePublisher>(sp =>
             {
                 var messagingOptions = sp.GetRequiredService<IOptions<MessagingSettings>>();
@@ -183,9 +176,9 @@ namespace Core.API.Clean.AdditionalService
                     baseMessagePublisher = new EmptyMessagePublisher(sp.GetRequiredService<ILogger<EmptyMessagePublisher>>());
                 }
 
-                var circuitBreakerService = sp.GetRequiredService<ICircuitBreakerService>();
-                var logger = sp.GetRequiredService<ILogger<CircuitBreakerMessagePublisher>>();
-                return new CircuitBreakerMessagePublisher(baseMessagePublisher, circuitBreakerService, logger);
+                var pipelineProvider = sp.GetRequiredService<ResiliencePipelineProvider<string>>();
+                var logger = sp.GetRequiredService<ILogger<ResilientMessagePublisher>>();
+                return new ResilientMessagePublisher(baseMessagePublisher, pipelineProvider, logger);
             });
 
             // Configure Rate Limiting settings
