@@ -1,4 +1,5 @@
-﻿using Core.Library.Clean.AdditionalService;
+﻿using Asp.Versioning;
+using Core.Library.Clean.AdditionalService;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Core.API.Clean.AdditionalService.Controllers
@@ -6,10 +7,12 @@ namespace Core.API.Clean.AdditionalService.Controllers
     /// <summary>
     /// V1 Controller for managing books (legacy format - kept for backward compatibility)
     /// </summary>
-    [Route("api/[controller]")]
+    //[Route("api/[controller]")]
     [ApiController]
     [ApiVersion("1.0")]
-    [ApiVersionNeutral] // Allow this to work without version specification for backward compatibility
+    //[ApiExplorerSettings(GroupName = "v1")]
+    [Route("api/v{version:apiVersion}/[controller]")]
+    //[ApiVersionNeutral] // Allow this to work without version specification for backward compatibility
     public class BookController(BookDirector bookDirector) : ControllerBase
     {
         private readonly BookDirector bookDirector = bookDirector;

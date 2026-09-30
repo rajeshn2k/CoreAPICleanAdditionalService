@@ -1,132 +1,248 @@
-﻿using Core.Library.Clean.AdditionalService;
+﻿using Asp.Versioning;
 using Core.API.Clean.AdditionalService;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Versioning;
+using Core.Library.Clean.AdditionalService;
 
 public static class Program
 {
     public static void Main(string[] args)
     {
-        string assemblyName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name ?? "AdditionalService";
-
-        // Resolve environment
-        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-        if (string.IsNullOrEmpty(environment))
-            environment = "Development";
-
-        // Build configuration
-        IConfiguration config = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true)
-            .Build();
-
-        // Read Kestrel endpoint
-        string kestrelEndpointUrl = config.GetSection("Kestrel:Endpoints:Http:Url").Value ?? "http://localhost:8080";
+        string assemblyName =
+            System.Reflection.Assembly.GetExecutingAssembly()
+                .GetName()
+                .Name ?? "AdditionalService";
 
         var builder = WebApplication.CreateBuilder(args);
 
-        // Apply configuration + Kestrel
-        builder.Configuration.AddConfiguration(config);
+        // ------------------------------------------------------------
+        // Configuration
+        // ------------------------------------------------------------
+
+        string environment = builder.Environment.EnvironmentName;
+
+        builder.Configuration
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile(
+                $"appsettings.{environment}.json",
+                optional: true,
+                reloadOnChange: true);
+
+        // ------------------------------------------------------------
+        // Kestrel
+        // ------------------------------------------------------------
+
+        string kestrelEndpointUrl =
+            builder.Configuration
+                .GetSection("Kestrel:Endpoints:Http:Url")
+                .Value
+            ?? "http://localhost:8080";
 
         builder.WebHost.ConfigureKestrel(options =>
         {
-            if (!string.IsNullOrEmpty(kestrelEndpointUrl))
-            {
-                var uri = new Uri(kestrelEndpointUrl);
+            var uri = new Uri(kestrelEndpointUrl);
 
-                options.ListenAnyIP(uri.Port, listenOptions =>
+            options.ListenAnyIP(uri.Port, listenOptions =>
+            {
+                if (uri.Scheme.Equals(
+                        "https",
+                        StringComparison.OrdinalIgnoreCase))
                 {
-                    if (uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
-                    {
-                        listenOptions.UseHttps();
-                    }
-                });
-            }
+                    listenOptions.UseHttps();
+                }
+            });
         });
 
-        // Dependency Injection - Application Services
-        builder.Services.AddApplicationServices(builder.Configuration);
+        // ------------------------------------------------------------
+        // Application Services
+        // ------------------------------------------------------------
 
-        // Add CORS
+        builder.Services.AddApplicationServices(
+            builder.Configuration);
+
+        // ------------------------------------------------------------
+        // CORS
+        // ------------------------------------------------------------
+
         builder.Services.AddCors(options =>
         {
-            options.AddPolicy("AllowAll",
-                policy =>
-                {
-                    policy.AllowAnyOrigin()
-                          .AllowAnyHeader()
-                          .AllowAnyMethod();
-                });
+            options.AddPolicy("AllowAll", policy =>
+            {
+                policy
+                    .AllowAnyOrigin()
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            });
         });
 
-        // Services
+        // ------------------------------------------------------------
+        // Controllers
+        // ------------------------------------------------------------
+
         builder.Services.AddControllers();
 
+        // ------------------------------------------------------------
         // API Versioning
-        builder.Services.AddApiVersioning(options =>
+        // ------------------------------------------------------------
+
+        builder.Services
+            .AddApiVersioning(options =>
+            {
+                // Default API version
+                options.DefaultApiVersion = new ApiVersion(1, 0);
+
+                // If no version is specified, use v1
+                options.AssumeDefaultVersionWhenUnspecified = true;
+
+                // Adds response headers such as:
+                // api-supported-versions: 1.0, 2.0
+                options.ReportApiVersions = true;
+
+                // Support multiple version readers:
+                //
+                // URL:
+                //   /api/v2/Book
+                //
+                // Header:
+                //   X-Api-Version: 2.0
+                //
+                // Query string:
+                //   /api/Book?api-version=2.0
+                //
+                options.ApiVersionReader = ApiVersionReader.Combine(
+                    new UrlSegmentApiVersionReader(),
+                    new HeaderApiVersionReader("X-Api-Version"),
+                    new QueryStringApiVersionReader("api-version"));
+            })
+            .AddApiExplorer(options =>
+            {
+                // Generates groups:
+                //
+                // v1
+                // v2
+                //
+                options.GroupNameFormat = "'v'VVV";
+
+                // Replaces {version:apiVersion} with the
+                // actual version in generated API descriptions.
+                options.SubstituteApiVersionInUrl = true;
+            });
+
+        // ------------------------------------------------------------
+        // OpenAPI - V1
+        // ------------------------------------------------------------
+
+        builder.Services.AddOpenApi("v1", options =>
         {
-            options.DefaultApiVersion = new ApiVersion(2, 0);
-            options.AssumeDefaultVersionWhenUnspecified = true;
-            options.ReportApiVersions = true;
-            options.ApiVersionReader = ApiVersionReader.Combine(
-                new UrlSegmentApiVersionReader(),
-                new HeaderApiVersionReader("X-Api-Version"),
-                new QueryStringApiVersionReader("api-version"));
+            options.ShouldInclude = description =>
+                description.GroupName == "v1";
         });
 
-        builder.Services.AddVersionedApiExplorer(options =>
+        // ------------------------------------------------------------
+        // OpenAPI - V2
+        // ------------------------------------------------------------
+
+        builder.Services.AddOpenApi("v2", options =>
         {
-            options.GroupNameFormat = "'v'VVV";
-            options.SubstituteApiVersionInUrl = true;
+            options.ShouldInclude = description =>
+                description.GroupName == "v2";
         });
 
-        //SWAGER
-        builder.Services.AddOpenApi();
-        builder.Services.AddEndpointsApiExplorer();
+        // ------------------------------------------------------------
+        // Build
+        // ------------------------------------------------------------
 
         var app = builder.Build();
 
-        // Pipeline
+        // ------------------------------------------------------------
+        // Correlation ID
+        // ------------------------------------------------------------
 
-        // Use Correlation ID Middleware (must be first)
         app.UseCorrelationId();
 
-        // Use Rate Limiting Middleware
+        // ------------------------------------------------------------
+        // Rate Limiting
+        // ------------------------------------------------------------
+
         app.UseMiddleware<RateLimitingMiddleware>();
 
-        // Use CORS
+        // ------------------------------------------------------------
+        // CORS
+        // ------------------------------------------------------------
+
         app.UseCors("AllowAll");
 
-        // Pipeline
+        // ------------------------------------------------------------
+        // OpenAPI / Swagger
+        // ------------------------------------------------------------
+
         if (app.Environment.IsDevelopment())
         {
-            app.MapOpenApi();
+            // --------------------------------------------------------
+            // OpenAPI JSON documents
+            //
+            // /openapi/v1.json
+            // /openapi/v2.json
+            // --------------------------------------------------------
+
+            app.MapOpenApi("/openapi/{documentName}.json");
+
+            // --------------------------------------------------------
+            // Swagger UI
+            //
+            // /swagger
+            // --------------------------------------------------------
+
             app.UseSwaggerUI(options =>
             {
-                options.SwaggerEndpoint("/openapi/v1.json", $"{assemblyName} v1");
+                options.SwaggerEndpoint(
+                    "/openapi/v1.json",
+                    $"{assemblyName} v1");
+
+                options.SwaggerEndpoint(
+                    "/openapi/v2.json",
+                    $"{assemblyName} v2");
+
+                options.RoutePrefix = "swagger";
             });
         }
 
-        //app.UseHttpsRedirection();
+        // ------------------------------------------------------------
+        // Authorization
+        // ------------------------------------------------------------
+
         app.UseAuthorization();
+
+        // ------------------------------------------------------------
+        // Controllers
+        // ------------------------------------------------------------
+
         app.MapControllers();
+
+        // ------------------------------------------------------------
+        // Database
+        // ------------------------------------------------------------
 
         CreateDbIfNotExists(app);
 
+        // ------------------------------------------------------------
+        // Run
+        // ------------------------------------------------------------
+
         app.Run();
     }
+
+    // ------------------------------------------------------------
+    // Database Initialization
+    // ------------------------------------------------------------
+
     private static void CreateDbIfNotExists(IHost host)
     {
         using var scope = host.Services.CreateScope();
+
         var services = scope.ServiceProvider;
 
-        var dbContext = services.GetRequiredService<SqlDataBaseDataContext>();
+        var dbContext =
+            services.GetRequiredService<SqlDataBaseDataContext>();
 
-        // Create database if it does not exist
         dbContext.Database.EnsureCreated();
-
-        //Data Seeding
-        //DatabaseInitializerPerson.Initialize(dbContext);
-        //DatabaseInitializerBook.Initialize(dbContext);
     }
 }

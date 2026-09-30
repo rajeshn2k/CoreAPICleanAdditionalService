@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Core.Library.Clean.AdditionalService;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,6 +9,7 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
     /// </summary>
     [ApiController]
     [ApiVersion("2.0")]
+    //[ApiExplorerSettings(GroupName = "v2")]
     [Route("api/v{version:apiVersion}/[controller]")]
     public class BookController : ControllerBase
     {
@@ -28,9 +30,13 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         {
             try
             {
+               
                 var correlationId = HttpContext.GetCorrelationId();
                 var books = await _bookDirector.GetEntitiesAsync(default).ConfigureAwait(false);
-
+                if (correlationId != null)
+                {
+                    throw new Exception("rajesh throws it");
+                }
                 var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
                     books,
                     "Books retrieved successfully",
@@ -45,11 +51,11 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
                 var errorResponse = ApiErrorResponse.CreateError(
                     ErrorCodes.INTERNAL_ERROR,
                     "An error occurred while retrieving books",
-                    500,
+                    (int)System.Net.HttpStatusCode.ServiceUnavailable,
                     correlationId,
                     HttpContext.Request.Path);
 
-                return StatusCode(500, errorResponse);
+                return StatusCode((int)System.Net.HttpStatusCode.ServiceUnavailable, errorResponse);
             }
         }
 
