@@ -30,13 +30,8 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         {
             try
             {
-               
                 var correlationId = HttpContext.GetCorrelationId();
                 var books = await _bookDirector.GetEntitiesAsync(default).ConfigureAwait(false);
-                if (correlationId != null)
-                {
-                    throw new Exception("rajesh throws it");
-                }
                 var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
                     books,
                     "Books retrieved successfully",

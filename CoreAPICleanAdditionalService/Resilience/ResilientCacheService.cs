@@ -1,9 +1,8 @@
 using Core.Library.Clean.AdditionalService;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Resilience;
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Registry;
+using Polly.Timeout;
 
 namespace Core.API.Clean.AdditionalService.Resilience
 {
@@ -13,7 +12,6 @@ namespace Core.API.Clean.AdditionalService.Resilience
     public sealed class ResilientCacheService : ICacheService
     {
         private const string PipelineKey = "Redis";
-
         private readonly ICacheService _innerCacheService;
         private readonly ResiliencePipeline _pipeline;
         private readonly ILogger<ResilientCacheService> _logger;
@@ -39,9 +37,35 @@ namespace Core.API.Clean.AdditionalService.Resilience
                     },
                     cancellationToken);
             }
+            /*
+             * ONLY handle Exception produced by Polly Resilience Pipelin Implements staergy
+             * policies such as Retry, Circuit breaker, TimeOut (Expected Behaviour)
+             * 1.TimeoutRejectedException,2.BrokenCircuitException
+             * Resilience - application's ability to withstand and rapidly recover from disruptions, failures
+             * Expectation is failure due to InMemoryCacheService or RedisCacheService should not break API data access
+             */
+            catch (TimeoutRejectedException ex)
+            {
+                //_logger.LogWarning(ex, "Cache operation timed out for key: {Key}", key);
+                _logger.LogWarning("Cache operation timed out for key: {Key}", key);
+                return default;
+            }
             catch (BrokenCircuitException ex)
             {
-                _logger.LogWarning(ex, "Redis circuit breaker is open. Cache read skipped for key: {Key}", key);
+                //_logger.LogWarning(ex, "Redis circuit breaker is open. Cache read skipped for key: {Key}", key);
+                _logger.LogWarning("Redis circuit breaker is open. Cache read skipped for key: {Key}", key);
+                return default;
+            }
+            /*
+             * it will catch essentially any exception that escapes _pipeline.ExecuteAsync(...) and turn it into a CACHE MISS by returning default
+             * So if _innerCacheService.GetAsync<T>() throws something unexpected, such as:
+             * 1.RedisConnectionException 2.RedisTimeoutException 3.NullReferenceException 4.ArgumentException 5.InvalidOperationException 6.OperationCanceledException 7.OutOfMemoryException
+             * IF YOU WANT CancellationToken PROPAGATE BACK TO DIRECTOR, THIS WILL PREVENT
+             */
+            catch (Exception ex)
+            {
+                //_logger.LogWarning(ex, "UN-HANDLED EXCEPTION swallowing programming bugs and cancellation: {Key}", key);
+                _logger.LogWarning("UN-HANDLED EXCEPTION swallowing programming bugs and cancellation");
                 return default;
             }
         }
@@ -57,9 +81,33 @@ namespace Core.API.Clean.AdditionalService.Resilience
                     },
                     cancellationToken);
             }
+            /*
+            * ONLY handle Exception produced by Polly Resilience Pipelin Implements staergy
+            * policies such as Retry, Circuit breaker, TimeOut (Expected Behaviour)
+            * 1.TimeoutRejectedException,2.BrokenCircuitException
+            * Resilience - application's ability to withstand and rapidly recover from disruptions, failures
+            * Expectation is failure due to InMemoryCacheService or RedisCacheService should not break API data access
+            */
+            catch (TimeoutRejectedException ex)
+            {
+                //_logger.LogWarning(ex, "Cache operation timed out for key: {Key}", key);
+                _logger.LogWarning("Cache operation timed out for key: {Key}", key);
+            }
             catch (BrokenCircuitException ex)
             {
-                _logger.LogWarning(ex, "Redis circuit breaker is open. Cache write skipped for key: {Key}", key);
+                _logger.LogWarning("Redis circuit breaker is open. Cache write skipped for key: {Key}", key);
+                //_logger.LogWarning(ex, "Redis circuit breaker is open. Cache write skipped for key: {Key}", key);
+            }
+            /*
+             * it will catch essentially any exception that escapes _pipeline.ExecuteAsync(...) and turn it into a CACHE MISS by returning default
+             * So if _innerCacheService.GetAsync<T>() throws something unexpected, such as:
+             * 1.RedisConnectionException 2.RedisTimeoutException 3.NullReferenceException 4.ArgumentException 5.InvalidOperationException 6.OperationCanceledException 7.OutOfMemoryException
+             * IF YOU WANT CancellationToken PROPAGATE BACK TO DIRECTOR, THIS WILL PREVENT
+             */
+            catch (Exception ex)
+            {
+                //_logger.LogWarning(ex, "UN-HANDLED EXCEPTION swallowing programming bugs and cancellation: {Key}", key);
+                _logger.LogWarning("UN-HANDLED EXCEPTION swallowing programming bugs and cancellation");
             }
         }
 
@@ -74,9 +122,33 @@ namespace Core.API.Clean.AdditionalService.Resilience
                     },
                     cancellationToken);
             }
+            /*
+            * ONLY handle Exception produced by Polly Resilience Pipelin Implements staergy
+            * policies such as Retry, Circuit breaker, TimeOut (Expected Behaviour)
+            * 1.TimeoutRejectedException,2.BrokenCircuitException
+            * Resilience - application's ability to withstand and rapidly recover from disruptions, failures
+            * Expectation is failure due to InMemoryCacheService or RedisCacheService should not break API data access
+            */
+            catch (TimeoutRejectedException ex)
+            {
+                //_logger.LogWarning(ex, "Cache operation timed out for key: {Key}", key);
+                _logger.LogWarning("Cache operation timed out for key: {Key}", key);
+            }
             catch (BrokenCircuitException ex)
             {
-                _logger.LogWarning(ex, "Redis circuit breaker is open. Cache removal skipped for key: {Key}", key);
+                //_logger.LogWarning(ex, "Redis circuit breaker is open. Cache removal skipped for key: {Key}", key);
+                _logger.LogWarning("Redis circuit breaker is open. Cache removal skipped for key: {Key}", key);
+            }
+            /*
+             * it will catch essentially any exception that escapes _pipeline.ExecuteAsync(...) and turn it into a CACHE MISS by returning default
+             * So if _innerCacheService.GetAsync<T>() throws something unexpected, such as:
+             * 1.RedisConnectionException 2.RedisTimeoutException 3.NullReferenceException 4.ArgumentException 5.InvalidOperationException 6.OperationCanceledException 7.OutOfMemoryException
+             * IF YOU WANT CancellationToken PROPAGATE BACK TO DIRECTOR, THIS WILL PREVENT
+             */
+            catch (Exception ex)
+            {
+                //_logger.LogWarning(ex, "UN-HANDLED EXCEPTION swallowing programming bugs and cancellation: {Key}", key);
+                _logger.LogWarning("UN-HANDLED EXCEPTION swallowing programming bugs and cancellation");
             }
         }
 
@@ -91,9 +163,33 @@ namespace Core.API.Clean.AdditionalService.Resilience
                     },
                     cancellationToken);
             }
+            /*
+            * ONLY handle Exception produced by Polly Resilience Pipelin Implements staergy
+            * policies such as Retry, Circuit breaker, TimeOut (Expected Behaviour)
+            * 1.TimeoutRejectedException,2.BrokenCircuitException
+            * Resilience - application's ability to withstand and rapidly recover from disruptions, failures
+            * Expectation is failure due to InMemoryCacheService or RedisCacheService should not break API data access
+            */
+            catch (TimeoutRejectedException ex)
+            {
+                //_logger.LogWarning(ex, "Cache operation timed out for key: {Key}", key);
+                _logger.LogWarning("Cache operation timed out");
+            }
             catch (BrokenCircuitException ex)
             {
-                _logger.LogWarning(ex, "Redis circuit breaker is open. Cache pattern removal skipped: {Pattern}", pattern);
+                _logger.LogWarning("Redis circuit breaker is open. Cache pattern removal skipped: {Pattern}", pattern);
+                //_logger.LogWarning(ex, "Redis circuit breaker is open. Cache pattern removal skipped: {Pattern}", pattern);
+            }
+            /*
+             * it will catch essentially any exception that escapes _pipeline.ExecuteAsync(...) and turn it into a CACHE MISS by returning default
+             * So if _innerCacheService.GetAsync<T>() throws something unexpected, such as:
+             * 1.RedisConnectionException 2.RedisTimeoutException 3.NullReferenceException 4.ArgumentException 5.InvalidOperationException 6.OperationCanceledException 7.OutOfMemoryException
+             * IF YOU WANT CancellationToken PROPAGATE BACK TO DIRECTOR, THIS WILL PREVENT
+             */
+            catch (Exception ex)
+            {
+                //_logger.LogWarning(ex, "UN-HANDLED EXCEPTION swallowing programming bugs and cancellation: {Key}", key);
+                _logger.LogWarning("UN-HANDLED EXCEPTION swallowing programming bugs and cancellation");
             }
         }
 
@@ -108,10 +204,36 @@ namespace Core.API.Clean.AdditionalService.Resilience
                     },
                     cancellationToken);
             }
+            /*
+            * ONLY handle Exception produced by Polly Resilience Pipelin Implements staergy
+            * policies such as Retry, Circuit breaker, TimeOut (Expected Behaviour)
+            * 1.TimeoutRejectedException,2.BrokenCircuitException
+            * Resilience - application's ability to withstand and rapidly recover from disruptions, failures
+            * Expectation is failure due to InMemoryCacheService or RedisCacheService should not break API data access
+            */
+            catch (TimeoutRejectedException ex)
+            {
+                //_logger.LogWarning(ex, "Cache operation timed out for key: {Key}", key);
+                _logger.LogWarning("Cache operation timed out for key: {Key}", key);
+                return false;
+            }
             catch (BrokenCircuitException ex)
             {
-                _logger.LogWarning(ex, "Redis circuit breaker is open. Cache existence check skipped for key: {Key}", key);
+                //_logger.LogWarning(ex, "Redis circuit breaker is open. Cache existence check skipped for key: {Key}", key);
+                _logger.LogWarning("Redis circuit breaker is open. Cache existence check skipped for key: {Key}", key);
                 return false;
+            }
+            /*
+             * it will catch essentially any exception that escapes _pipeline.ExecuteAsync(...) and turn it into a CACHE MISS by returning default
+             * So if _innerCacheService.GetAsync<T>() throws something unexpected, such as:
+             * 1.RedisConnectionException 2.RedisTimeoutException 3.NullReferenceException 4.ArgumentException 5.InvalidOperationException 6.OperationCanceledException 7.OutOfMemoryException
+             * IF YOU WANT CancellationToken PROPAGATE BACK TO DIRECTOR, THIS WILL PREVENT
+             */
+            catch (Exception ex)
+            {
+                //_logger.LogWarning(ex, "UN-HANDLED EXCEPTION swallowing programming bugs and cancellation: {Key}", key);
+                _logger.LogWarning("UN-HANDLED EXCEPTION swallowing programming bugs and cancellation");
+                return default;
             }
         }
 
@@ -126,9 +248,33 @@ namespace Core.API.Clean.AdditionalService.Resilience
                     },
                     cancellationToken);
             }
+            /*
+            * ONLY handle Exception produced by Polly Resilience Pipelin Implements staergy
+            * policies such as Retry, Circuit breaker, TimeOut (Expected Behaviour)
+            * 1.TimeoutRejectedException,2.BrokenCircuitException
+            * Resilience - application's ability to withstand and rapidly recover from disruptions, failures
+            * Expectation is failure due to InMemoryCacheService or RedisCacheService should not break API data access
+            */
+            catch (TimeoutRejectedException ex)
+            {
+                //_logger.LogWarning(ex, "Cache operation timed out for key: {Key}", key);
+                _logger.LogWarning("Cache operation timed out");
+            }
             catch (BrokenCircuitException ex)
             {
-                _logger.LogWarning(ex, "Redis circuit breaker is open. Cache pattern removal skipped: {Pattern}", pattern);
+                //_logger.LogWarning(ex, "Redis circuit breaker is open. Cache pattern removal skipped: {Pattern}", pattern);
+                _logger.LogWarning("Redis circuit breaker is open. Cache pattern removal skipped: {Pattern}", pattern);
+            }
+            /*
+             * it will catch essentially any exception that escapes _pipeline.ExecuteAsync(...) and turn it into a CACHE MISS by returning default
+             * So if _innerCacheService.GetAsync<T>() throws something unexpected, such as:
+             * 1.RedisConnectionException 2.RedisTimeoutException 3.NullReferenceException 4.ArgumentException 5.InvalidOperationException 6.OperationCanceledException 7.OutOfMemoryException
+             * IF YOU WANT CancellationToken PROPAGATE BACK TO DIRECTOR, THIS WILL PREVENT
+             */
+            catch (Exception ex)
+            {
+                //_logger.LogWarning(ex, "UN-HANDLED EXCEPTION swallowing programming bugs and cancellation: {Key}", key);
+                _logger.LogWarning("UN-HANDLED EXCEPTION swallowing programming bugs and cancellation");
             }
         }
     }

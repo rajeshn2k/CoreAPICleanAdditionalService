@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using Newtonsoft.Json;
 using Microsoft.Extensions.Logging;
@@ -15,16 +14,13 @@ namespace Core.Library.Clean.AdditionalService
         private readonly IConnectionMultiplexer _redis;
         private readonly IDatabase _database;
         private readonly ILogger<RedisCacheService> _logger;
-        private readonly CacheSettings _settings;
-
+        
         public RedisCacheService(
             IConnectionMultiplexer redis,
-            IOptions<CacheSettings> settings,
             ILogger<RedisCacheService> logger)
         {
             _redis = redis;
             _database = redis.GetDatabase();
-            _settings = settings.Value;
             _logger = logger;
         }
 
@@ -44,7 +40,7 @@ namespace Core.Library.Clean.AdditionalService
         public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
         {
             var serialized = JsonConvert.SerializeObject(value);
-            var expiry = expiration ?? _settings.DefaultExpiration;
+            var expiry = expiration ?? TimeSpan.FromMinutes(30);
 
             await _database.StringSetAsync(key, serialized, expiry);
             _logger.LogDebug("Cache set for key: {Key} with expiration: {Expiration}", key, expiry);

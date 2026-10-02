@@ -1,38 +1,43 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Core.Library.Clean.AdditionalService
 {
-    /// <summary>
-    /// In-memory fallback cache service when Redis is unavailable
-    /// Redis implementation of cache service
-    /// CircuitBreakerCacheService will handle the exception
-    /// Having exception handler here will force, Retry won't happen and Circuit breaker won't open
-    /// </summary>
     public class InMemoryCacheService : ICacheService
     {
         private readonly Dictionary<string, CacheEntry> _cache = new();
         private readonly ILogger<InMemoryCacheService> _logger;
-        private readonly CacheSettings _settings;
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
         public InMemoryCacheService(
-            IOptions<CacheSettings> settings,
             ILogger<InMemoryCacheService> logger)
         {
-            _settings = settings.Value;
             _logger = logger;
+        }
+
+        private async Task ResilientTest_CacheService(CancellationToken cancellationToken)
+        {
+            string action = "t"; //e-exception, t-timeout
+            switch (action)
+            {
+                case "e":
+                    throw new Exception("rajesh nandhan memory cache fails");
+
+                case "t":
+                    // Deliberately take 20 seconds, but honor cancellation.
+                    await Task.Delay(TimeSpan.FromSeconds(20), cancellationToken);
+                    break;
+                default:
+                    return;
+            }
         }
 
         public async Task<T> GetAsync<T>(string key, CancellationToken cancellationToken = default)
         {
             await _lock.WaitAsync(cancellationToken);
+
             try
             {
-                //if (key != null)
-                //{
-                //    throw new Exception("rajesh nandhan memory cache fails");
-                //}
+                await ResilientTest_CacheService(cancellationToken);
 
                 if (_cache.TryGetValue(key, out var entry))
                 {
@@ -48,6 +53,9 @@ namespace Core.Library.Clean.AdditionalService
                 }
                 return default(T);
             }
+            /* Having 'NO' exception handler here will let Resilience Pipelin to enable the statergy
+              * Polly Resilience Pipelin Implements staergy or policies such as Retry, Circuit breaker, TimeOut
+              * ResilientCacheService is the caller or excuter for actual InMemoryCacheService or RedisCacheService*/
             finally
             {
                 _lock.Release();
@@ -59,7 +67,9 @@ namespace Core.Library.Clean.AdditionalService
             await _lock.WaitAsync(cancellationToken);
             try
             {
-                var expiry = expiration ?? _settings.DefaultExpiration;
+                await ResilientTest_CacheService(cancellationToken);
+
+                var expiry = expiration ?? TimeSpan.FromMinutes(30);
                 _cache[key] = new CacheEntry
                 {
                     Value = value,
@@ -67,6 +77,9 @@ namespace Core.Library.Clean.AdditionalService
                 };
                 _logger.LogDebug("In-memory cache set for key: {Key}", key);
             }
+            /* Having 'NO' exception handler here will let Resilience Pipelin to enable the statergy
+              * Polly Resilience Pipelin Implements staergy or policies such as Retry, Circuit breaker, TimeOut
+              * ResilientCacheService is the caller or excuter for actual InMemoryCacheService or RedisCacheService*/
             finally
             {
                 _lock.Release();
@@ -78,9 +91,14 @@ namespace Core.Library.Clean.AdditionalService
             await _lock.WaitAsync(cancellationToken);
             try
             {
+                await ResilientTest_CacheService(cancellationToken);
+
                 _cache.Remove(key);
                 _logger.LogDebug("In-memory cache removed for key: {Key}", key);
             }
+            /* Having 'NO' exception handler here will let Resilience Pipelin to enable the statergy
+              * Polly Resilience Pipelin Implements staergy or policies such as Retry, Circuit breaker, TimeOut
+              * ResilientCacheService is the caller or excuter for actual InMemoryCacheService or RedisCacheService*/
             finally
             {
                 _lock.Release();
@@ -92,6 +110,8 @@ namespace Core.Library.Clean.AdditionalService
             await _lock.WaitAsync(cancellationToken);
             try
             {
+                await ResilientTest_CacheService(cancellationToken);
+
                 var keysToRemove = _cache.Keys.Where(k => k.Contains(pattern)).ToList();
                 foreach (var key in keysToRemove)
                 {
@@ -99,6 +119,9 @@ namespace Core.Library.Clean.AdditionalService
                 }
                 _logger.LogDebug("In-memory cache removed {Count} keys matching pattern: {Pattern}", keysToRemove.Count, pattern);
             }
+            /* Having 'NO' exception handler here will let Resilience Pipelin to enable the statergy
+              * Polly Resilience Pipelin Implements staergy or policies such as Retry, Circuit breaker, TimeOut
+              * ResilientCacheService is the caller or excuter for actual InMemoryCacheService or RedisCacheService*/
             finally
             {
                 _lock.Release();
@@ -110,6 +133,8 @@ namespace Core.Library.Clean.AdditionalService
             await _lock.WaitAsync(cancellationToken);
             try
             {
+                await ResilientTest_CacheService(cancellationToken);
+
                 if (_cache.TryGetValue(key, out var entry))
                 {
                     if (entry.Expiration > DateTime.UtcNow)
@@ -123,6 +148,9 @@ namespace Core.Library.Clean.AdditionalService
                 }
                 return false;
             }
+            /* Having 'NO' exception handler here will let Resilience Pipelin to enable the statergy
+             * Polly Resilience Pipelin Implements staergy or policies such as Retry, Circuit breaker, TimeOut
+             * ResilientCacheService is the caller or excuter for actual InMemoryCacheService or RedisCacheService*/
             finally
             {
                 _lock.Release();

@@ -22,14 +22,20 @@ namespace Core.Library.Clean.AdditionalService
         public async Task<IEnumerable<BookDTO>> GetEntitiesAsync(CancellationToken cancellationToken)
         {
             var cacheKey = "book:all";
-            var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
+            IEnumerable<BookDTO> bookDTOs = null;
 
-            if (cachedBooks != null)
+            /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+             * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+
+            bookDTOs = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
+
+            if (bookDTOs != null)
             {
                 logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
-                return cachedBooks;
+                return bookDTOs;
             }
 
+            //DATA ACCESS AFTER CACHE MISS
             var books = await unitOfWork.BookRepository.GetEntitiesAsync(cancellationToken);
 
             if (books == null)
@@ -38,14 +44,22 @@ namespace Core.Library.Clean.AdditionalService
             }
             else
             {
-                var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+                bookDTOs = books.Select(BookMapper.BookToBookDTO);
+
+                /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                 * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+
                 await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(30), cancellationToken);
+
                 return bookDTOs;
             }
         }
 
         public async Task<BookDTO> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
         {
+            /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+            * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+
             var cacheKey = $"book:{entityId}";
             var cachedBook = await cacheService.GetAsync<BookDTO>(cacheKey, cancellationToken);
 
@@ -64,13 +78,21 @@ namespace Core.Library.Clean.AdditionalService
             else
             {
                 var bookDTO = BookMapper.BookToBookDTO(book);
+
+                /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                 * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+
                 await cacheService.SetAsync(cacheKey, bookDTO, TimeSpan.FromMinutes(60), cancellationToken);
+
                 return bookDTO;
             }
         }
 
         public async Task<IEnumerable<BookDTO>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
         {
+            /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+             * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+
             var cacheKey = $"book:search:{searchValue}";
             var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
 
@@ -89,12 +111,18 @@ namespace Core.Library.Clean.AdditionalService
             else
             {
                 var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+
+                /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                 * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+
                 await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(15), cancellationToken);
                 return bookDTOs;
             }
         }
         public async Task<IEnumerable<BookDTO>> SearchEntitiesByForeignIdAsync(string personId, CancellationToken cancellationToken)
         {
+            /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+             * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
             var cacheKey = $"book:person:{personId}";
             var cachedBooks = await cacheService.GetAsync<IEnumerable<BookDTO>>(cacheKey, cancellationToken);
 
@@ -113,6 +141,10 @@ namespace Core.Library.Clean.AdditionalService
             else
             {
                 var bookDTOs = books.Select(BookMapper.BookToBookDTO);
+
+                /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                 * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+
                 await cacheService.SetAsync(cacheKey, bookDTOs, TimeSpan.FromMinutes(30), cancellationToken);
                 return bookDTOs;
             }
@@ -128,10 +160,12 @@ namespace Core.Library.Clean.AdditionalService
 
                 if (result > 0)
                 {
+                    /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                     * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
                     // This may also required for search case implementation
                     // Invalidate cache
                     await InvalidateBookCacheForSingleEntityAsync(entityId, cancellationToken);
-                    
+
                     // Publish message
                     var message = new BookUpdatedMessage
                     {
@@ -160,6 +194,8 @@ namespace Core.Library.Clean.AdditionalService
 
                 if (result > 0)
                 {
+                    /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                        * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
                     // Invalidate all book cache
                     await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
 
@@ -191,10 +227,12 @@ namespace Core.Library.Clean.AdditionalService
 
                 if (result != null)
                 {
+                    /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                     * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
                     // Invalidate book list cache
                     // This may also required for search case implementation, but individual items
                     await cacheService.RemoveAsync("book:all", cancellationToken);
-                    
+
                     // Publish message
                     var message = new BookCreatedMessage
                     {
@@ -222,6 +260,8 @@ namespace Core.Library.Clean.AdditionalService
 
                 if (result != null)
                 {
+                    /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                     * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
                     // Invalidate all book cache
                     await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
 
@@ -248,6 +288,8 @@ namespace Core.Library.Clean.AdditionalService
 
             if (result > 0)
             {
+                /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                 * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
                 // Invalidate cache
                 await InvalidateBookCacheForSingleEntityAsync(entityId, cancellationToken);
             }
@@ -261,6 +303,8 @@ namespace Core.Library.Clean.AdditionalService
 
             if (result > 0)
             {
+                /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                 * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
                 // Invalidate all book cache
                 await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
             }
@@ -280,6 +324,8 @@ namespace Core.Library.Clean.AdditionalService
 
                 if (result != null)
                 {
+                    /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                     * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
                     // Invalidate all book cache
                     await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
                     return result.Select(BookMapper.BookToBookDTO);

@@ -1,6 +1,4 @@
 using Core.Library.Clean.AdditionalService;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Resilience;
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Registry;
@@ -13,7 +11,6 @@ namespace Core.API.Clean.AdditionalService.Resilience
     public sealed class ResilientMessagePublisher : IMessagePublisher
     {
         private const string PipelineKey = "RabbitMQ";
-
         private readonly IMessagePublisher _innerMessagePublisher;
         private readonly ResiliencePipeline _pipeline;
         private readonly ILogger<ResilientMessagePublisher> _logger;
