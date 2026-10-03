@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Core.Library.Clean.AdditionalService.ResilientTest;
+using Microsoft.Extensions.Logging;
 
 namespace Core.Library.Clean.AdditionalService
 {
@@ -13,19 +14,25 @@ namespace Core.Library.Clean.AdditionalService
         private readonly ICacheService cacheService;
         private readonly ILogger<PersonDirector> logger;
         private readonly BookDirector bookDirector;
-
+        private readonly ResilientTestService resilientTestService;
+        //e-exception, t-timeout, a-default
+        private readonly string testMode = "a";
         public PersonDirector(IUnitOfWork unitOfWork, IMessagePublisher messagePublisher, ICacheService cacheService,
-            ILogger<PersonDirector> logger, BookDirector bookDirector)
+            ILogger<PersonDirector> logger, BookDirector bookDirector, ResilientTestService resilientTestService)
         {
             this.unitOfWork = unitOfWork;
             this.messagePublisher = messagePublisher;
             this.cacheService = cacheService;
             this.logger = logger;
             this.bookDirector = bookDirector;
+            this.resilientTestService = resilientTestService;
         }
 
         public async Task<IEnumerable<PersonDTO>> GetEntitiesAsync(CancellationToken cancellationToken)
         {
+            //e-exception, t-timeout, a-default
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
+
             var cacheKey = "person:all";
             var cachedPersons = await cacheService.GetAsync<IEnumerable<PersonDTO>>(cacheKey, cancellationToken);
 

@@ -1,3 +1,4 @@
+using Core.Library.Clean.AdditionalService.ResilientTest;
 using Microsoft.Extensions.Logging;
 
 namespace Core.Library.Clean.AdditionalService
@@ -6,30 +7,19 @@ namespace Core.Library.Clean.AdditionalService
     {
         private readonly Dictionary<string, CacheEntry> _cache = new();
         private readonly ILogger<InMemoryCacheService> _logger;
+        private readonly ResilientTestService resilientTestService;
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
+        //e-exception, t-timeout, a-default
+        private readonly string testMode = "a";
+
         public InMemoryCacheService(
-            ILogger<InMemoryCacheService> logger)
+            ILogger<InMemoryCacheService> logger, ResilientTestService resilientTestService)
         {
             _logger = logger;
+            this.resilientTestService = resilientTestService;
         }
 
-        private async Task ResilientTest_CacheService(CancellationToken cancellationToken)
-        {
-            string action = "t"; //e-exception, t-timeout
-            switch (action)
-            {
-                case "e":
-                    throw new Exception("rajesh nandhan memory cache fails");
-
-                case "t":
-                    // Deliberately take 20 seconds, but honor cancellation.
-                    await Task.Delay(TimeSpan.FromSeconds(20), cancellationToken);
-                    break;
-                default:
-                    return;
-            }
-        }
 
         public async Task<T> GetAsync<T>(string key, CancellationToken cancellationToken = default)
         {
@@ -37,7 +27,7 @@ namespace Core.Library.Clean.AdditionalService
 
             try
             {
-                await ResilientTest_CacheService(cancellationToken);
+                await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
 
                 if (_cache.TryGetValue(key, out var entry))
                 {
@@ -67,7 +57,7 @@ namespace Core.Library.Clean.AdditionalService
             await _lock.WaitAsync(cancellationToken);
             try
             {
-                await ResilientTest_CacheService(cancellationToken);
+                await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
 
                 var expiry = expiration ?? TimeSpan.FromMinutes(30);
                 _cache[key] = new CacheEntry
@@ -91,7 +81,7 @@ namespace Core.Library.Clean.AdditionalService
             await _lock.WaitAsync(cancellationToken);
             try
             {
-                await ResilientTest_CacheService(cancellationToken);
+                await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
 
                 _cache.Remove(key);
                 _logger.LogDebug("In-memory cache removed for key: {Key}", key);
@@ -110,7 +100,7 @@ namespace Core.Library.Clean.AdditionalService
             await _lock.WaitAsync(cancellationToken);
             try
             {
-                await ResilientTest_CacheService(cancellationToken);
+                await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
 
                 var keysToRemove = _cache.Keys.Where(k => k.Contains(pattern)).ToList();
                 foreach (var key in keysToRemove)
@@ -133,7 +123,7 @@ namespace Core.Library.Clean.AdditionalService
             await _lock.WaitAsync(cancellationToken);
             try
             {
-                await ResilientTest_CacheService(cancellationToken);
+                await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
 
                 if (_cache.TryGetValue(key, out var entry))
                 {

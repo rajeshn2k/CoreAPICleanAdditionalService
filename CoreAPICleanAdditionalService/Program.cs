@@ -47,6 +47,8 @@ public static class Program
 
         builder.Services.AddApplicationServices(builder.Configuration);
 
+        //builder.Services.AddHostedService<InMemoryMessageConsumer>();
+
         // ------------------------------------------------------------
         // CORS
         // ------------------------------------------------------------
@@ -140,6 +142,12 @@ public static class Program
         // ------------------------------------------------------------
 
         app.UseCorrelationId();
+
+        // ------------------------------------------------------------
+        // Global Exception Handler
+        // ------------------------------------------------------------
+
+        app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
         // ------------------------------------------------------------
         // Rate Limiting

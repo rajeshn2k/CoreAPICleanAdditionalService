@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Core.Library.Clean.AdditionalService.ResilientTest;
+using Microsoft.Extensions.Logging;
 
 namespace Core.Library.Clean.AdditionalService
 {
@@ -10,19 +11,33 @@ namespace Core.Library.Clean.AdditionalService
         private readonly IMessagePublisher messagePublisher;
         private readonly ICacheService cacheService;
         private readonly ILogger<BookDirector> logger;
+        private readonly ResilientTestService resilientTestService;
 
-        public BookDirector(IUnitOfWork unitOfWork, IMessagePublisher messagePublisher, ICacheService cacheService, ILogger<BookDirector> logger)
+        //e-exception, t-timeout, a-default
+        private readonly string testMode = "t";
+
+        public BookDirector(IUnitOfWork unitOfWork, IMessagePublisher messagePublisher, ICacheService cacheService, ILogger<BookDirector> logger, ResilientTestService resilientTestService)
         {
             this.unitOfWork = unitOfWork;
             this.messagePublisher = messagePublisher;
             this.cacheService = cacheService;
             this.logger = logger;
+            this.resilientTestService = resilientTestService;
         }
 
         public async Task<IEnumerable<BookDTO>> GetEntitiesAsync(CancellationToken cancellationToken)
         {
             var cacheKey = "book:all";
             IEnumerable<BookDTO> bookDTOs = null;
+
+            /* e-exception, t-timeout, a-default
+             * THIS IS THE ACTUAL TESTING OF THIS API RESILENCE
+             * THIS API PURPOSE IS TO SERVE DATA FROM SQL
+             * Testing HTTPClinet for Book API Request due to delibrate time out
+             * HOW TO - API SHould take more time like 25 Secs to process data access
+             * and MVC WEB APP Polly should not wait more than 5 secons
+             */
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
 
             /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
              * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
@@ -57,6 +72,15 @@ namespace Core.Library.Clean.AdditionalService
 
         public async Task<BookDTO> GetEntityByIdAsync(string entityId, CancellationToken cancellationToken)
         {
+            /* e-exception, t-timeout, a-default
+             * THIS IS THE ACTUAL TESTING OF THIS API RESILENCE
+             * THIS API PURPOSE IS TO SERVE DATA FROM SQL
+             * Testing HTTPClinet for Book API Request due to delibrate time out
+             * HOW TO - API SHould take more time like 25 Secs to process data access
+             * and MVC WEB APP Polly should not wait more than 5 secons
+             */
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
+
             /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
             * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
 
@@ -90,6 +114,15 @@ namespace Core.Library.Clean.AdditionalService
 
         public async Task<IEnumerable<BookDTO>> SearchEntitiesAsync(string searchValue, CancellationToken cancellationToken)
         {
+            /* e-exception, t-timeout, a-default
+             * THIS IS THE ACTUAL TESTING OF THIS API RESILENCE
+             * THIS API PURPOSE IS TO SERVE DATA FROM SQL
+             * Testing HTTPClinet for Book API Request due to delibrate time out
+             * HOW TO - API SHould take more time like 25 Secs to process data access
+             * and MVC WEB APP Polly should not wait more than 5 secons
+             */
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
+
             /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
              * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
 
@@ -121,6 +154,15 @@ namespace Core.Library.Clean.AdditionalService
         }
         public async Task<IEnumerable<BookDTO>> SearchEntitiesByForeignIdAsync(string personId, CancellationToken cancellationToken)
         {
+            /* e-exception, t-timeout, a-default
+              * THIS IS THE ACTUAL TESTING OF THIS API RESILENCE
+              * THIS API PURPOSE IS TO SERVE DATA FROM SQL
+              * Testing HTTPClinet for Book API Request due to delibrate time out
+              * HOW TO - API SHould take more time like 25 Secs to process data access
+              * and MVC WEB APP Polly should not wait more than 5 secons
+              */
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
+
             /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
              * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
             var cacheKey = $"book:person:{personId}";
@@ -152,99 +194,113 @@ namespace Core.Library.Clean.AdditionalService
 
         public async Task<long> UpdateEntityByIdAsync(string entityId, BookDTO book, CancellationToken cancellationToken)
         {
-            if (book != null)
+            /* e-exception, t-timeout, a-default
+             * THIS IS THE ACTUAL TESTING OF THIS API RESILENCE
+             * THIS API PURPOSE IS TO SERVE DATA FROM SQL
+             * Testing HTTPClinet for Book API Request due to delibrate time out
+             * HOW TO - API SHould take more time like 25 Secs to process data access
+             * and MVC WEB APP Polly should not wait more than 5 secons
+             */
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
+
+            var bookEntity = BookMapper.BookDTOToBook(book);
+
+            var result = await unitOfWork.BookRepository.UpdateAsync(entityId, bookEntity, cancellationToken).ConfigureAwait(false);
+
+            if (result > 0)
             {
-                var bookEntity = BookMapper.BookDTOToBook(book);
+                /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                 * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+                // This may also required for search case implementation
+                // Invalidate cache
+                await InvalidateBookCacheForSingleEntityAsync(entityId, cancellationToken);
 
-                var result = await unitOfWork.BookRepository.UpdateAsync(entityId, bookEntity, cancellationToken).ConfigureAwait(false);
-
-                if (result > 0)
+                // Publish message
+                var message = new BookUpdatedMessage
                 {
-                    /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
-                     * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
-                    // This may also required for search case implementation
-                    // Invalidate cache
-                    await InvalidateBookCacheForSingleEntityAsync(entityId, cancellationToken);
+                    BookId = entityId,
+                    BookData = book,
+                    Timestamp = DateTime.UtcNow,
+                    CorrelationId = Guid.NewGuid().ToString()
+                };
 
-                    // Publish message
-                    var message = new BookUpdatedMessage
-                    {
-                        BookId = entityId,
-                        BookData = book,
-                        Timestamp = DateTime.UtcNow,
-                        CorrelationId = Guid.NewGuid().ToString()
-                    };
-
-                    await messagePublisher.PublishAsync(message, cancellationToken).ConfigureAwait(false);
-                }
-
-                return result;
+                await messagePublisher.PublishAsync(message, cancellationToken).ConfigureAwait(false);
             }
 
-            return 0;
+            return result;
         }
 
         public async Task<long> UpdateEntitiesAsync(IEnumerable<string> bookIds, IEnumerable<BookDTO> books, CancellationToken cancellationToken)
         {
-            if (books != null)
+            /* e-exception, t-timeout, a-default
+             * THIS IS THE ACTUAL TESTING OF THIS API RESILENCE
+             * THIS API PURPOSE IS TO SERVE DATA FROM SQL
+             * Testing HTTPClinet for Book API Request due to delibrate time out
+             * HOW TO - API SHould take more time like 25 Secs to process data access
+             * and MVC WEB APP Polly should not wait more than 5 secons
+             */
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
+
+            var bookEntities = books.Select(book => BookMapper.BookDTOToBook(book));
+
+            var result = await unitOfWork.BookRepository.UpdateManyAsync(bookEntities, cancellationToken).ConfigureAwait(false);
+
+            if (result > 0)
             {
-                var bookEntities = books.Select(book => BookMapper.BookDTOToBook(book));
+                /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                    * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+                // Invalidate all book cache
+                await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
 
-                var result = await unitOfWork.BookRepository.UpdateManyAsync(bookEntities, cancellationToken).ConfigureAwait(false);
-
-                if (result > 0)
+                // Publish messages
+                var messages = bookEntities.Select(b => new BookUpdatedMessage
                 {
-                    /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
-                        * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
-                    // Invalidate all book cache
-                    await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
+                    BookId = b.Id,
+                    BookData = BookMapper.BookToBookDTO(b),
+                    Timestamp = DateTime.UtcNow,
+                    CorrelationId = Guid.NewGuid().ToString()
+                });
 
-                    // Publish messages
-                    var messages = bookEntities.Select(b => new BookUpdatedMessage
-                    {
-                        BookId = b.Id,
-                        BookData = BookMapper.BookToBookDTO(b),
-                        Timestamp = DateTime.UtcNow,
-                        CorrelationId = Guid.NewGuid().ToString()
-                    });
-
-                    await messagePublisher.PublishAsync(messages, cancellationToken).ConfigureAwait(false);
-                }
-
-                return result;
+                await messagePublisher.PublishAsync(messages, cancellationToken).ConfigureAwait(false);
             }
 
-            return 0;
+            return result;
         }
 
         public async Task<BookDTO> CreateEntityAsync(BookCreateDTO book, CancellationToken cancellationToken)
         {
-            if (book != null)
+            /* e-exception, t-timeout, a-default
+             * THIS IS THE ACTUAL TESTING OF THIS API RESILENCE
+             * THIS API PURPOSE IS TO SERVE DATA FROM SQL
+             * Testing HTTPClinet for Book API Request due to delibrate time out
+             * HOW TO - API SHould take more time like 25 Secs to process data access
+             * and MVC WEB APP Polly should not wait more than 5 secons
+             */
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
+
+            var bookEntity = BookMapper.BookCreateDTOToBook(book);
+
+            var result = await unitOfWork.BookRepository.CreateEntityAsync(bookEntity, cancellationToken).ConfigureAwait(false);
+
+            if (result != null)
             {
-                var bookEntity = BookMapper.BookCreateDTOToBook(book);
+                /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                 * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+                // Invalidate book list cache
+                // This may also required for search case implementation, but individual items
+                await cacheService.RemoveAsync("book:all", cancellationToken);
 
-                var result = await unitOfWork.BookRepository.CreateEntityAsync(bookEntity, cancellationToken).ConfigureAwait(false);
-
-                if (result != null)
+                // Publish message
+                var message = new BookCreatedMessage
                 {
-                    /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
-                     * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
-                    // Invalidate book list cache
-                    // This may also required for search case implementation, but individual items
-                    await cacheService.RemoveAsync("book:all", cancellationToken);
+                    BookId = result.Id,
+                    BookData = BookMapper.BookToBookDTO(result),
+                    Timestamp = DateTime.UtcNow,
+                    CorrelationId = Guid.NewGuid().ToString()
+                };
+                await messagePublisher.PublishAsync(message, cancellationToken).ConfigureAwait(false);
 
-                    // Publish message
-                    var message = new BookCreatedMessage
-                    {
-                        BookId = result.Id,
-                        BookData = BookMapper.BookToBookDTO(result),
-                        Timestamp = DateTime.UtcNow,
-                        CorrelationId = Guid.NewGuid().ToString()
-                    };
-                    await messagePublisher.PublishAsync(message, cancellationToken).ConfigureAwait(false);
-
-                    return BookMapper.BookToBookDTO(result);
-                }
+                return BookMapper.BookToBookDTO(result);
             }
 
             return null;
@@ -252,31 +308,37 @@ namespace Core.Library.Clean.AdditionalService
 
         public async Task<IEnumerable<BookDTO>> CreateEntitiesAsync(IEnumerable<BookCreateDTO> books, CancellationToken cancellationToken)
         {
-            if (books != null)
+            /* e-exception, t-timeout, a-default
+              * THIS IS THE ACTUAL TESTING OF THIS API RESILENCE
+              * THIS API PURPOSE IS TO SERVE DATA FROM SQL
+              * Testing HTTPClinet for Book API Request due to delibrate time out
+              * HOW TO - API SHould take more time like 25 Secs to process data access
+              * and MVC WEB APP Polly should not wait more than 5 secons
+              */
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
+
+            var bookEntities = books.Select(book => BookMapper.BookCreateDTOToBook(book));
+
+            var result = await unitOfWork.BookRepository.CreateEntitiesAsync(bookEntities, cancellationToken).ConfigureAwait(false);
+
+            if (result != null)
             {
-                var bookEntities = books.Select(book => BookMapper.BookCreateDTOToBook(book));
+                /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
+                 * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
+                // Invalidate all book cache
+                await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
 
-                var result = await unitOfWork.BookRepository.CreateEntitiesAsync(bookEntities, cancellationToken).ConfigureAwait(false);
-
-                if (result != null)
+                // Publish messages
+                var messages = result.Select(b => new BookCreatedMessage
                 {
-                    /* Expectation due to InMemoryCacheService or RedisCacheService Handled in ResilientCacheService
-                     * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
-                    // Invalidate all book cache
-                    await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
+                    BookId = b.Id,
+                    BookData = BookMapper.BookToBookDTO(b),
+                    Timestamp = DateTime.UtcNow,
+                    CorrelationId = Guid.NewGuid().ToString()
+                });
+                await messagePublisher.PublishAsync(messages, cancellationToken).ConfigureAwait(false);
 
-                    // Publish messages
-                    var messages = result.Select(b => new BookCreatedMessage
-                    {
-                        BookId = b.Id,
-                        BookData = BookMapper.BookToBookDTO(b),
-                        Timestamp = DateTime.UtcNow,
-                        CorrelationId = Guid.NewGuid().ToString()
-                    });
-                    await messagePublisher.PublishAsync(messages, cancellationToken).ConfigureAwait(false);
-
-                    return result.Select(BookMapper.BookToBookDTO);
-                }
+                return result.Select(BookMapper.BookToBookDTO);
             }
 
             return null;
@@ -284,6 +346,15 @@ namespace Core.Library.Clean.AdditionalService
 
         public async Task<long> DeleteEntityByIdAsync(string entityId, CancellationToken cancellationToken)
         {
+            /* e-exception, t-timeout, a-default
+             * THIS IS THE ACTUAL TESTING OF THIS API RESILENCE
+             * THIS API PURPOSE IS TO SERVE DATA FROM SQL
+             * Testing HTTPClinet for Book API Request due to delibrate time out
+             * HOW TO - API SHould take more time like 25 Secs to process data access
+             * and MVC WEB APP Polly should not wait more than 5 secons
+             */
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
+
             var result = await unitOfWork.BookRepository.DeleteEntityByIdAsync(entityId, cancellationToken).ConfigureAwait(false);
 
             if (result > 0)
@@ -299,6 +370,15 @@ namespace Core.Library.Clean.AdditionalService
 
         public async Task<long> DeleteEntitiesAsync(CancellationToken cancellationToken)
         {
+            /* e-exception, t-timeout, a-default
+             * THIS IS THE ACTUAL TESTING OF THIS API RESILENCE
+             * THIS API PURPOSE IS TO SERVE DATA FROM SQL
+             * Testing HTTPClinet for Book API Request due to delibrate time out
+             * HOW TO - API SHould take more time like 25 Secs to process data access
+             * and MVC WEB APP Polly should not wait more than 5 secons
+             */
+            await resilientTestService.InjectIssueDelayExceptionNone(testMode, cancellationToken);
+
             var result = await unitOfWork.BookRepository.DeleteEntitiesAsync(cancellationToken).ConfigureAwait(false);
 
             if (result > 0)
@@ -328,6 +408,7 @@ namespace Core.Library.Clean.AdditionalService
                      * ANY Expectation incured in CacheService turn it into a CACHE MISS by returning default*/
                     // Invalidate all book cache
                     await InvalidateBookCacheForMultipleEntityAsync(cancellationToken);
+
                     return result.Select(BookMapper.BookToBookDTO);
                 }
             }

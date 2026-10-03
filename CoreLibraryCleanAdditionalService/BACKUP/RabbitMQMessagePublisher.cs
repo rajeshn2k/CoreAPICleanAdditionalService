@@ -1,10 +1,12 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
-using RabbitMQ.Client;
-
+//WORKING - UNCOMMENT FOR TESTING
+/*
 namespace Core.Library.Clean.AdditionalService
 {
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Options;
+    using Newtonsoft.Json;
+    using RabbitMQ.Client;
+
     /// <summary>
     /// RabbitMQ implementation of message publisher
     /// </summary>
@@ -197,3 +199,5 @@ namespace Core.Library.Clean.AdditionalService
         public bool EnableMessaging { get; set; } = false;
     }
 }
+
+*/

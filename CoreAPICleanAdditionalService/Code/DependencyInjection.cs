@@ -1,5 +1,6 @@
 ﻿using Core.API.Clean.AdditionalService.Resilience;
 using Core.Library.Clean.AdditionalService;
+using Core.Library.Clean.AdditionalService.ResilientTest;
 using Microsoft.EntityFrameworkCore;
 using Polly;
 using Polly.CircuitBreaker;
@@ -24,9 +25,13 @@ namespace Core.API.Clean.AdditionalService
             //Dependency Injection for Entity Framework + SQLite
             ConfigureServices_DataAccess(services, configuration);
 
+            //e-exception, t-timeout, a-default
+            services.AddTransient<ResilientTestService>();
+
             // Dependency Injection and Register for Directors
             services.AddTransient<BookDirector>();
             services.AddTransient<PersonDirector>();
+
 
             //Register resilience pipeline with policies for Retry, Circuit Breaker, Timeout
             //Register resilience pipeline for RabbitMQ Message Publisher
@@ -61,7 +66,8 @@ namespace Core.API.Clean.AdditionalService
                         var connectionMultiplexer = sp.GetService<IConnectionMultiplexer>();
                         if (connectionMultiplexer != null)
                         {
-                            return new RedisRateLimitingService(connectionMultiplexer, sp.GetRequiredService<ILogger<RedisRateLimitingService>>());
+                            return new RedisRateLimitingService(connectionMultiplexer, 
+                                sp.GetRequiredService<ILogger<RedisRateLimitingService>>());
                         }
                         // Fallback to in-memory rate limiting if Redis is unavailable
                         return new InMemoryRateLimitingService(sp.GetRequiredService<ILogger<InMemoryRateLimitingService>>());
@@ -89,35 +95,23 @@ namespace Core.API.Clean.AdditionalService
 
             // Register InMemory or Redis cache resilience pipeline builder (ResiliencePipelineProvider)
 
-            services.AddResiliencePipeline("Redis", pipelineBuilder =>
+            services.AddResiliencePipeline("InMemoryCacheService", pipelineBuilder =>
             {
-                /*
-                 * -MaxRetryAttempts means 3 retries after the initial attempt, so 4 total attempts.
-                 * -Exponential backoff + jitter, there can also be additional waiting time between attempts.
-                 * -Jitter adds some randomness to the delay to avoid
-                 * multiple requests retrying at exactly the same time.
-                 */
-                pipelineBuilder.AddRetry(new RetryStrategyOptions
-                {
-                    MaxRetryAttempts = 3,
-                    Delay = TimeSpan.FromSeconds(1),
-                    BackoffType = DelayBackoffType.Exponential,
-                    UseJitter = true
-                });
 
                 /*
                  * Once there have been at least 2 executions within the 30-second sampling window, 
-                 * if at least 50% ( = 0.5) are considered failures, open the circuit.
+                 * if at least 30% ( = 0.3) are considered failures, open the circuit.
                  * Meaning out of 2 processed, even if 1 fails in 30 secs its an case for open circuit.
                  * After 60 seconds circuit should get closed.
                  */
                 pipelineBuilder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
                 {
-                    FailureRatio = 0.5,
+                    FailureRatio = 0.3,
                     MinimumThroughput = 2,
                     SamplingDuration = TimeSpan.FromSeconds(30),
                     BreakDuration = TimeSpan.FromSeconds(60)
                 });
+
 
                 /*
                  * Timeout strategy is cooperative: it cancels the execution via the CancellationToken; 
@@ -127,16 +121,32 @@ namespace Core.API.Clean.AdditionalService
 
                 pipelineBuilder.AddTimeout(new TimeoutStrategyOptions
                 {
-                    Timeout = TimeSpan.FromSeconds(15)
+                    Timeout = TimeSpan.FromSeconds(10)
+                });
+
+                /*
+                * -MaxRetryAttempts means 3 retries after the initial attempt, so 4 total attempts.
+                * -Exponential backoff + jitter, there can also be additional waiting time between attempts.
+                * -Jitter adds some randomness to the delay to avoid
+                * multiple requests retrying at exactly the same time.
+                */
+                pipelineBuilder.AddRetry(new RetryStrategyOptions
+                {
+                    MaxRetryAttempts = 3,
+                    Delay = TimeSpan.FromSeconds(1),
+                    BackoffType = DelayBackoffType.Exponential,
+                    UseJitter = true
                 });
             });
 
+            services.AddSingleton<InMemoryCacheService>();
+
             services.AddSingleton<ICacheService>(sp =>
             {
-                var innerCacheService = new InMemoryCacheService(
-                    sp.GetRequiredService<ILogger<InMemoryCacheService>>());
+                var innerCacheService = sp.GetRequiredService<InMemoryCacheService>();
 
                 var pipelineProvider = sp.GetRequiredService<ResiliencePipelineProvider<string>>();
+
                 var logger = sp.GetRequiredService<ILogger<ResilientCacheService>>();
 
                 return new ResilientCacheService(innerCacheService, pipelineProvider, logger);
@@ -150,9 +160,23 @@ namespace Core.API.Clean.AdditionalService
         IServiceCollection services, IConfiguration configuration)
         {
             // Register RabbitMQ resilience pipeline
-            services.AddResiliencePipeline("RabbitMQ", pipelineBuilder =>
+            //4time it required to test timeout
+            services.AddResiliencePipeline("InMemoryMessagePublisher", pipelineBuilder =>
             {
                 //var resilienceSettings = configuration.GetSection("Resilience:RabbitMQ").Get<ServiceResilienceSettings>();
+
+                pipelineBuilder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
+                {
+                    FailureRatio = 0.3,
+                    MinimumThroughput = 2,
+                    SamplingDuration = TimeSpan.FromSeconds(30),
+                    BreakDuration = TimeSpan.FromSeconds(60)
+                });
+
+                pipelineBuilder.AddTimeout(new TimeoutStrategyOptions
+                {
+                    Timeout = TimeSpan.FromSeconds(10)
+                });
 
                 pipelineBuilder.AddRetry(new RetryStrategyOptions
                 {
@@ -161,39 +185,20 @@ namespace Core.API.Clean.AdditionalService
                     BackoffType = DelayBackoffType.Exponential,
                     UseJitter = true
                 });
-
-                pipelineBuilder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
-                {
-                    FailureRatio = 0.5,
-                    MinimumThroughput = 10,
-                    SamplingDuration = TimeSpan.FromSeconds(30),
-                    BreakDuration = TimeSpan.FromSeconds(60)
-                });
-
-                pipelineBuilder.AddTimeout(new TimeoutStrategyOptions
-                {
-                    Timeout = TimeSpan.FromSeconds(15)
-                });
             });
+
+            services.AddScoped<InMemoryMessagePublisher>();
 
             // Register scoped IMessagePublisher with resilience wrapper
             services.AddScoped<IMessagePublisher>(sp =>
             {
-                IMessagePublisher baseMessagePublisher;
-
-                if (bool.Parse(configuration.GetSection("EnableRabbitMQMessaging").Value) == true)
-                {
-                    baseMessagePublisher = new RabbitMQMessagePublisher(sp.GetRequiredService<ILogger<RabbitMQMessagePublisher>>());
-                }
-                else
-                {
-                    // Fallback to empty publisher if RabbitMQ is unavailable
-                    baseMessagePublisher = new EmptyMessagePublisher(sp.GetRequiredService<ILogger<EmptyMessagePublisher>>());
-                }
+                var innerMessagePublisher = sp.GetRequiredService<InMemoryMessagePublisher>();
 
                 var pipelineProvider = sp.GetRequiredService<ResiliencePipelineProvider<string>>();
+
                 var logger = sp.GetRequiredService<ILogger<ResilientMessagePublisher>>();
-                return new ResilientMessagePublisher(baseMessagePublisher, pipelineProvider, logger);
+
+                return new ResilientMessagePublisher(innerMessagePublisher, pipelineProvider, logger);
             });
         }
 

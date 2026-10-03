@@ -11,7 +11,7 @@ namespace Core.API.Clean.AdditionalService.Resilience
     /// </summary>
     public sealed class ResilientCacheService : ICacheService
     {
-        private const string PipelineKey = "Redis";
+        private const string PipelineKey = "InMemoryCacheService";
         private readonly ICacheService _innerCacheService;
         private readonly ResiliencePipeline _pipeline;
         private readonly ILogger<ResilientCacheService> _logger;

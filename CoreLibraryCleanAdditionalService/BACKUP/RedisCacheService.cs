@@ -1,9 +1,11 @@
+//WORKING - UNCOMMENT FOR TESTING
+/*
+namespace Core.Library.Clean.AdditionalService
+{
 using StackExchange.Redis;
 using Newtonsoft.Json;
 using Microsoft.Extensions.Logging;
 
-namespace Core.Library.Clean.AdditionalService
-{
     /// <summary>
     /// Redis implementation of cache service
     /// CircuitBreakerCacheService will handle the exception
@@ -83,3 +85,5 @@ namespace Core.Library.Clean.AdditionalService
         }
     }
 }
+
+*/

@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using Core.Library.Clean.AdditionalService;
 using Microsoft.AspNetCore.Mvc;
+using System.Buffers;
 
 namespace Core.API.Clean.AdditionalService.Controllers.V2
 {
@@ -28,30 +29,27 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         [HttpGet]
         public async Task<ActionResult<ApiResponse<IEnumerable<BookDTO>>>> Get()
         {
-            try
-            {
-                var correlationId = HttpContext.GetCorrelationId();
-                var books = await _bookDirector.GetEntitiesAsync(default).ConfigureAwait(false);
-                var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
-                    books,
-                    "Books retrieved successfully",
-                    correlationId);
+            var correlationId = HttpContext.GetCorrelationId();
+            var books = await _bookDirector.GetEntitiesAsync(default).ConfigureAwait(false);
 
-                return Ok(response);
-            }
-            catch (Exception ex)
+            if (books == null)
             {
-                _logger.LogError(ex, "Error retrieving books");
-                var correlationId = HttpContext.GetCorrelationId();
                 var errorResponse = ApiErrorResponse.CreateError(
-                    ErrorCodes.INTERNAL_ERROR,
-                    "An error occurred while retrieving books",
-                    (int)System.Net.HttpStatusCode.ServiceUnavailable,
+                    ErrorCodes.BOOK_NOT_FOUND,
+                    $"Books not found",
+                    404,
                     correlationId,
                     HttpContext.Request.Path);
 
-                return StatusCode((int)System.Net.HttpStatusCode.ServiceUnavailable, errorResponse);
+                return NotFound(errorResponse);
             }
+
+            var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
+                books,
+                "Books retrieved successfully",
+                correlationId);
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -60,43 +58,27 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         [HttpGet("{bookId}")]
         public async Task<ActionResult<ApiResponse<BookDTO>>> GetById(string bookId)
         {
-            try
+            var correlationId = HttpContext.GetCorrelationId();
+            var book = await _bookDirector.GetEntityByIdAsync(bookId, default).ConfigureAwait(false);
+
+            if (book == null)
             {
-                var correlationId = HttpContext.GetCorrelationId();
-                var book = await _bookDirector.GetEntityByIdAsync(bookId, default).ConfigureAwait(false);
-
-                if (book == null)
-                {
-                    var errorResponse = ApiErrorResponse.CreateError(
-                        ErrorCodes.BOOK_NOT_FOUND,
-                        $"Book with ID {bookId} not found",
-                        404,
-                        correlationId,
-                        HttpContext.Request.Path);
-
-                    return NotFound(errorResponse);
-                }
-
-                var response = ApiResponse<BookDTO>.CreateSuccess(
-                    book,
-                    "Book retrieved successfully",
-                    correlationId);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving book with ID: {BookId}", bookId);
-                var correlationId = HttpContext.GetCorrelationId();
                 var errorResponse = ApiErrorResponse.CreateError(
-                    ErrorCodes.INTERNAL_ERROR,
-                    "An error occurred while retrieving the book",
-                    500,
+                    ErrorCodes.BOOK_NOT_FOUND,
+                    $"Book with ID {bookId} not found",
+                    404,
                     correlationId,
                     HttpContext.Request.Path);
 
-                return StatusCode(500, errorResponse);
+                return NotFound(errorResponse);
             }
+
+            var response = ApiResponse<BookDTO>.CreateSuccess(
+                book,
+                "Book retrieved successfully",
+                correlationId);
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -105,31 +87,27 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         [HttpGet("SearchByBook/{searchValue}")]
         public async Task<ActionResult<ApiResponse<IEnumerable<BookDTO>>>> SearchByBook(string searchValue)
         {
-            try
-            {
-                var correlationId = HttpContext.GetCorrelationId();
-                var books = await _bookDirector.SearchEntitiesAsync(searchValue, default).ConfigureAwait(false);
+            var correlationId = HttpContext.GetCorrelationId();
+            var books = await _bookDirector.SearchEntitiesAsync(searchValue, default).ConfigureAwait(false);
 
-                var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
-                    books,
-                    "Books search completed successfully",
-                    correlationId);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
+            if (books == null)
             {
-                _logger.LogError(ex, "Error searching books with value: {SearchValue}", searchValue);
-                var correlationId = HttpContext.GetCorrelationId();
                 var errorResponse = ApiErrorResponse.CreateError(
-                    ErrorCodes.INTERNAL_ERROR,
-                    "An error occurred while searching books",
-                    500,
+                    ErrorCodes.BOOK_NOT_FOUND,
+                    $"Books not found for search: {searchValue}",
+                    404,
                     correlationId,
                     HttpContext.Request.Path);
 
-                return StatusCode(500, errorResponse);
+                return NotFound(errorResponse);
             }
+
+            var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
+                books,
+                "Books search completed successfully",
+                correlationId);
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -138,31 +116,27 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         [HttpGet("SearchByPersonId/{personId}")]
         public async Task<ActionResult<ApiResponse<IEnumerable<BookDTO>>>> SearchByPerson(string personId)
         {
-            try
-            {
-                var correlationId = HttpContext.GetCorrelationId();
-                var books = await _bookDirector.SearchEntitiesByForeignIdAsync(personId, default).ConfigureAwait(false);
+            var correlationId = HttpContext.GetCorrelationId();
+            var books = await _bookDirector.SearchEntitiesByForeignIdAsync(personId, default).ConfigureAwait(false);
 
-                var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
-                    books,
-                    "Books search completed successfully",
-                    correlationId);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
+            if (books == null)
             {
-                _logger.LogError(ex, "Error searching books by person ID: {PersonId}", personId);
-                var correlationId = HttpContext.GetCorrelationId();
                 var errorResponse = ApiErrorResponse.CreateError(
-                    ErrorCodes.INTERNAL_ERROR,
-                    "An error occurred while searching books",
-                    500,
+                    ErrorCodes.BOOK_NOT_FOUND,
+                    $"Books not found for personid: {personId}",
+                    404,
                     correlationId,
                     HttpContext.Request.Path);
 
-                return StatusCode(500, errorResponse);
+                return NotFound(errorResponse);
             }
+
+            var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
+                books,
+                "Books search completed successfully",
+                correlationId);
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -171,31 +145,27 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         [HttpPut("{bookId}")]
         public async Task<ActionResult<ApiResponse<long>>> Put(string bookId, BookDTO book)
         {
-            try
-            {
-                var correlationId = HttpContext.GetCorrelationId();
-                var result = await _bookDirector.UpdateEntityByIdAsync(bookId, book, default).ConfigureAwait(false);
+            var correlationId = HttpContext.GetCorrelationId();
+            var result = await _bookDirector.UpdateEntityByIdAsync(bookId, book, default).ConfigureAwait(false);
 
-                var response = ApiResponse<long>.CreateSuccess(
-                    result,
-                    "Book updated successfully",
-                    correlationId);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
+            if (result <= 0)
             {
-                _logger.LogError(ex, "Error updating book with ID: {BookId}", bookId);
-                var correlationId = HttpContext.GetCorrelationId();
                 var errorResponse = ApiErrorResponse.CreateError(
                     ErrorCodes.INTERNAL_ERROR,
-                    "An error occurred while updating the book",
+                    "Failed to update book",
                     500,
                     correlationId,
                     HttpContext.Request.Path);
 
                 return StatusCode(500, errorResponse);
             }
+
+            var response = ApiResponse<long>.CreateSuccess(
+                result,
+                "Book updated successfully",
+                correlationId);
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -204,43 +174,27 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         [HttpPost]
         public async Task<ActionResult<ApiResponse<BookDTO>>> Post(BookCreateDTO book)
         {
-            try
+            var correlationId = HttpContext.GetCorrelationId();
+            var bookResult = await _bookDirector.CreateEntityAsync(book, default).ConfigureAwait(false);
+
+            if (bookResult == null)
             {
-                var correlationId = HttpContext.GetCorrelationId();
-                var bookResult = await _bookDirector.CreateEntityAsync(book, default).ConfigureAwait(false);
-
-                if (bookResult == null)
-                {
-                    var errorResponse = ApiErrorResponse.CreateError(
-                        ErrorCodes.INTERNAL_ERROR,
-                        "Failed to create book",
-                        500,
-                        correlationId,
-                        HttpContext.Request.Path);
-
-                    return StatusCode(500, errorResponse);
-                }
-
-                var response = ApiResponse<BookDTO>.CreateSuccess(
-                    bookResult,
-                    "Book created successfully",
-                    correlationId);
-
-                return CreatedAtAction(nameof(GetById), new { bookId = bookResult.id }, response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating book");
-                var correlationId = HttpContext.GetCorrelationId();
                 var errorResponse = ApiErrorResponse.CreateError(
                     ErrorCodes.INTERNAL_ERROR,
-                    "An error occurred while creating the book",
+                    "Failed to create book",
                     500,
                     correlationId,
                     HttpContext.Request.Path);
 
                 return StatusCode(500, errorResponse);
             }
+
+            var response = ApiResponse<BookDTO>.CreateSuccess(
+                bookResult,
+                "Book created successfully",
+                correlationId);
+
+            return CreatedAtAction(nameof(GetById), new { bookId = bookResult.id }, response);
         }
 
         /// <summary>
@@ -249,31 +203,27 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         [HttpPost("Many")]
         public async Task<ActionResult<ApiResponse<IEnumerable<BookDTO>>>> PostMany(IEnumerable<BookCreateDTO> books)
         {
-            try
-            {
-                var correlationId = HttpContext.GetCorrelationId();
-                var bookResult = await _bookDirector.CreateEntitiesAsync(books, default).ConfigureAwait(false);
+            var correlationId = HttpContext.GetCorrelationId();
+            var bookResult = await _bookDirector.CreateEntitiesAsync(books, default).ConfigureAwait(false);
 
-                var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
-                    bookResult,
-                    "Books created successfully",
-                    correlationId);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
+            if (bookResult?.Count() <= 0)
             {
-                _logger.LogError(ex, "Error creating multiple books");
-                var correlationId = HttpContext.GetCorrelationId();
                 var errorResponse = ApiErrorResponse.CreateError(
                     ErrorCodes.INTERNAL_ERROR,
-                    "An error occurred while creating books",
+                    "Failed to create books",
                     500,
                     correlationId,
                     HttpContext.Request.Path);
 
                 return StatusCode(500, errorResponse);
             }
+
+            var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
+                bookResult,
+                "Books created successfully",
+                correlationId);
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -282,31 +232,27 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         [HttpDelete("{bookId}")]
         public async Task<ActionResult<ApiResponse<long>>> Delete(string bookId)
         {
-            try
-            {
-                var correlationId = HttpContext.GetCorrelationId();
-                var result = await _bookDirector.DeleteEntityByIdAsync(bookId, default).ConfigureAwait(false);
+            var correlationId = HttpContext.GetCorrelationId();
+            var result = await _bookDirector.DeleteEntityByIdAsync(bookId, default).ConfigureAwait(false);
 
-                var response = ApiResponse<long>.CreateSuccess(
-                    result,
-                    "Book deleted successfully",
-                    correlationId);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
+            if (result <= 0)
             {
-                _logger.LogError(ex, "Error deleting book with ID: {BookId}", bookId);
-                var correlationId = HttpContext.GetCorrelationId();
                 var errorResponse = ApiErrorResponse.CreateError(
                     ErrorCodes.INTERNAL_ERROR,
-                    "An error occurred while deleting the book",
+                    "Failed to delete book",
                     500,
                     correlationId,
                     HttpContext.Request.Path);
 
                 return StatusCode(500, errorResponse);
             }
+
+            var response = ApiResponse<long>.CreateSuccess(
+                result,
+                "Book deleted successfully",
+                correlationId);
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -315,31 +261,27 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         [HttpDelete("Many")]
         public async Task<ActionResult<ApiResponse<long>>> DeleteAll()
         {
-            try
-            {
-                var correlationId = HttpContext.GetCorrelationId();
-                var result = await _bookDirector.DeleteEntitiesAsync(default).ConfigureAwait(false);
+            var correlationId = HttpContext.GetCorrelationId();
+            var result = await _bookDirector.DeleteEntitiesAsync(default).ConfigureAwait(false);
 
-                var response = ApiResponse<long>.CreateSuccess(
-                    result,
-                    "All books deleted successfully",
-                    correlationId);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
+            if (result <= 0)
             {
-                _logger.LogError(ex, "Error deleting all books");
-                var correlationId = HttpContext.GetCorrelationId();
                 var errorResponse = ApiErrorResponse.CreateError(
                     ErrorCodes.INTERNAL_ERROR,
-                    "An error occurred while deleting books",
+                    "Failed to delete books",
                     500,
                     correlationId,
                     HttpContext.Request.Path);
 
                 return StatusCode(500, errorResponse);
             }
+
+            var response = ApiResponse<long>.CreateSuccess(
+                result,
+                "All books deleted successfully",
+                correlationId);
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -348,31 +290,15 @@ namespace Core.API.Clean.AdditionalService.Controllers.V2
         [HttpGet("LoadAllBookForNewDatabase")]
         public async Task<ActionResult<ApiResponse<IEnumerable<BookDTO>>>> LoadAllBookForNewDatabase()
         {
-            try
-            {
-                var correlationId = HttpContext.GetCorrelationId();
-                var result = await _bookDirector.LoadAllEntityForNewDatabase(default).ConfigureAwait(false);
+            var correlationId = HttpContext.GetCorrelationId();
+            var result = await _bookDirector.LoadAllEntityForNewDatabase(default).ConfigureAwait(false);
 
-                var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
-                    result,
-                    "Books loaded successfully",
-                    correlationId);
+            var response = ApiResponse<IEnumerable<BookDTO>>.CreateSuccess(
+                result,
+                "Books loaded successfully",
+                correlationId);
 
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error loading books for new database");
-                var correlationId = HttpContext.GetCorrelationId();
-                var errorResponse = ApiErrorResponse.CreateError(
-                    ErrorCodes.INTERNAL_ERROR,
-                    "An error occurred while loading books",
-                    500,
-                    correlationId,
-                    HttpContext.Request.Path);
-
-                return StatusCode(500, errorResponse);
-            }
+            return Ok(response);
         }
     }
 }
