@@ -30,6 +30,9 @@ namespace Core.API.Clean.AdditionalService
             if (!_settings.EnableRateLimiting)
             {
                 await _next(context);
+                //_next(context)
+                // This will pass next middleware in the pipeline to run rightaway
+                // While Control flow going back to response rendering execution no further logic of rate limiting needed 
                 return;
             }
 
@@ -39,6 +42,7 @@ namespace Core.API.Clean.AdditionalService
             var clientIdentifier = GetClientIdentifier(context);
 
             // Check if request is allowed
+            // "Hey rate limiter, is user:12345 allowed to make another request?"
             var isAllowed = await _rateLimitingService.IsAllowedAsync(
                 clientIdentifier,
                 rateLimit,
@@ -71,7 +75,10 @@ namespace Core.API.Clean.AdditionalService
                 return;
             }
 
-            // Add rate limit headers
+            // Add rate limit headers, These are useful to API clients.
+            // Maximum requests allowed for this user
+            // How many requests do I have left?
+            // How long should I wait before trying again?
             var remaining = await _rateLimitingService.GetRemainingRequestsAsync(clientIdentifier, rateLimit);
             context.Response.Headers.Append("X-RateLimit-Limit", rateLimit.ToString());
             context.Response.Headers.Append("X-RateLimit-Remaining", remaining.ToString());

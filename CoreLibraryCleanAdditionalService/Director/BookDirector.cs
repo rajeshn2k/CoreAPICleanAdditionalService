@@ -14,7 +14,7 @@ namespace Core.Library.Clean.AdditionalService
         private readonly ResilientTestService resilientTestService;
 
         //e-exception, t-timeout, a-default
-        private readonly string testMode = "t";
+        private readonly string testMode = "a";
 
         public BookDirector(IUnitOfWork unitOfWork, IMessagePublisher messagePublisher, ICacheService cacheService, ILogger<BookDirector> logger, ResilientTestService resilientTestService)
         {

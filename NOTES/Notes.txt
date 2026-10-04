@@ -1,1 +1,825 @@
 https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/using-openapi-documents?view=aspnetcore-10.0
+
+1. Client & API Layer
+Web/mobile clients
+
+API Gateway
+
+Load balancer
+
+Reverse proxy
+
+Authentication/authorization
+
+Rate limiting
+
+API versioning
+
+Request validation
+
+CORS handling
+
+TLS/HTTPS termination
+
+Typical technologies: NGINX, Kong, AWS API Gateway, Azure API Management, Apigee.
+
+2. Microservices
+Each service should generally have:
+
+Business logic
+
+REST/gRPC/GraphQL API
+
+Service-specific database/schema
+
+Configuration management
+
+Input validation
+
+Error handling
+
+Logging
+
+Health/readiness endpoints
+
+Metrics
+
+Distributed tracing
+
+Unit/integration tests
+
+Example:
+
+User Service
+ ├── API
+ ├── Business Logic
+ ├── Repository
+ ├── Database
+ ├── Cache
+ └── Observability
+
+3. Service-to-Service Communication
+You typically need both synchronous and asynchronous communication.
+
+Synchronous
+REST
+
+gRPC
+
+HTTP/HTTPS
+
+Asynchronous
+Message broker
+
+Event bus
+
+Queues
+
+Pub/sub
+
+Dead-letter queues
+
+Retry mechanisms
+
+Common technologies:
+
+Apache Kafka
+
+RabbitMQ
+
+AWS SQS/SNS
+
+Azure Service Bus
+
+Google Pub/Sub
+
+4. Service Discovery
+Required when service instances can dynamically change.
+
+Components include:
+
+Service registry
+
+Service discovery
+
+Health checks
+
+Load balancing
+
+Examples:
+
+Kubernetes Service/DNS
+
+Consul
+
+Eureka
+
+In Kubernetes, native service discovery often removes the need for a separate discovery product.
+
+5. Data Layer
+A key microservices principle is data ownership by service.
+
+Components may include:
+
+Relational databases
+
+NoSQL databases
+
+Cache
+
+Search engine
+
+Object storage
+
+Database migration tooling
+
+Backup/restore
+
+Replication
+
+Connection pooling
+
+Examples:
+
+PostgreSQL/MySQL
+
+MongoDB
+
+Redis
+
+Elasticsearch/OpenSearch
+
+S3-compatible object storage
+
+Architecture:
+
+                  ┌── PostgreSQL
+User Service ─────┤
+                  └── Redis
+
+                  ┌── MongoDB
+Order Service ────┤
+                  └── Redis
+
+Avoid having every microservice directly access one shared database.
+
+6. Caching
+Depending on requirements:
+
+Distributed cache
+
+Application-level cache
+
+CDN
+
+Database query caching
+
+Cache invalidation strategy
+
+TTL management
+
+Common technology:
+
+Redis
+
+Memcached
+
+CloudFront/Cloud CDN/Azure CDN
+
+7. Security
+A production architecture generally needs:
+
+Identity provider
+
+Authentication
+
+Authorization
+
+OAuth 2.0
+
+OpenID Connect
+
+JWT/access tokens
+
+Role-based access control
+
+Service-to-service authentication
+
+Secrets management
+
+Encryption in transit
+
+Encryption at rest
+
+Certificate management
+
+API rate limiting
+
+Audit logging
+
+Examples:
+
+Keycloak
+
+Auth0
+
+Okta
+
+AWS Cognito
+
+HashiCorp Vault
+
+Cloud provider secret managers
+
+8. Configuration Management
+Don't hard-code environment-specific configuration.
+
+You need:
+
+Environment variables
+
+Configuration server/management
+
+Secrets
+
+Feature flags
+
+Environment-specific configuration
+
+Typical environments:
+
+Development
+     ↓
+Testing
+     ↓
+Staging
+     ↓
+Production
+
+9. Containerization
+Most modern microservices are packaged as containers.
+
+Components:
+
+Dockerfile
+
+Container image
+
+Container registry
+
+Image scanning
+
+Version/tagging strategy
+
+Examples:
+
+Docker
+
+Amazon ECR
+
+Azure Container Registry
+
+Google Artifact Registry
+
+GitHub Container Registry
+
+10. Container Orchestration
+For larger production deployments:
+
+Kubernetes cluster
+
+Pods
+
+Deployments
+
+Services
+
+Ingress
+
+ConfigMaps
+
+Secrets
+
+Horizontal Pod Autoscaler
+
+Persistent volumes
+
+Namespaces
+
+Resource limits/requests
+
+Alternatives include:
+
+AWS ECS
+
+Azure Container Apps
+
+Google Cloud Run
+
+OpenShift
+
+11. Service Mesh — Optional
+For complex environments:
+
+Service-to-service encryption
+
+Traffic management
+
+Retries
+
+Timeouts
+
+Circuit breaking
+
+Observability
+
+Traffic splitting
+
+Examples:
+
+Istio
+
+Linkerd
+
+Consul
+
+A service mesh isn't mandatory for every microservices system.
+
+12. Resilience & Fault Tolerance
+This is particularly important because distributed systems fail in more ways than monoliths.
+
+Implement:
+
+Timeouts
+
+Retries
+
+Exponential backoff
+
+Circuit breakers
+
+Bulkheads
+
+Rate limiting
+
+Idempotency
+
+Graceful degradation
+
+Dead-letter queues
+
+Health checks
+
+Failover
+
+Example:
+
+Service A
+   │
+   ├── timeout
+   ├── retry
+   ├── circuit breaker
+   │
+   ▼
+Service B
+
+13. Observability
+You need three major areas:
+
+Logs
+Centralized logging
+
+Structured JSON logs
+
+Log correlation IDs
+
+Log retention
+
+Technologies:
+
+Elasticsearch/OpenSearch
+
+Logstash/Fluent Bit
+
+Loki
+
+Cloud logging services
+
+Metrics
+Track:
+
+CPU/memory
+
+Request rate
+
+Error rate
+
+Latency
+
+Database performance
+
+Queue depth
+
+Business metrics
+
+Common stack:
+
+Prometheus
+
+Grafana
+
+Distributed Tracing
+Track a request across services:
+
+Client
+  ↓
+API Gateway
+  ↓
+Order Service
+  ↓
+Payment Service
+  ↓
+Notification Service
+
+Common technologies:
+
+OpenTelemetry
+
+Jaeger
+
+Grafana Tempo
+
+14. CI/CD
+A production microservices architecture needs automated delivery.
+
+Pipeline:
+
+Git
+ ↓
+Build
+ ↓
+Unit Tests
+ ↓
+Security Scan
+ ↓
+Build Container
+ ↓
+Push Image
+ ↓
+Integration Tests
+ ↓
+Deploy Staging
+ ↓
+Acceptance Tests
+ ↓
+Production
+
+Tools:
+
+GitHub Actions
+
+GitLab CI/CD
+
+Jenkins
+
+Azure DevOps
+
+Argo CD
+
+Flux
+
+15. Infrastructure as Code
+Infrastructure should be reproducible.
+
+Common components:
+
+Kubernetes manifests
+
+Helm charts
+
+Terraform
+
+Ansible
+
+CloudFormation/Bicep
+
+For example:
+
+Terraform
+   ↓
+Cloud Infrastructure
+   ↓
+Kubernetes
+   ↓
+Microservices
+
+16. Testing
+You generally need several testing layers:
+
+Unit tests
+
+Integration tests
+
+API tests
+
+Contract tests
+
+End-to-end tests
+
+Performance tests
+
+Load tests
+
+Security tests
+
+Chaos/resilience testing
+
+Particularly important in microservices:
+
+Contract testing, because services evolve independently.
+
+17. API Management
+For externally exposed APIs:
+
+API documentation
+
+OpenAPI/Swagger
+
+API versioning
+
+Rate limiting
+
+Authentication
+
+Quotas
+
+API analytics
+
+Developer portal
+
+18. Database & Distributed Transactions
+Microservices frequently need to handle operations spanning multiple services.
+
+Useful patterns:
+
+Saga pattern
+
+Transactional outbox
+
+Event sourcing, where appropriate
+
+CQRS, where appropriate
+
+Idempotent consumers
+
+Eventual consistency
+
+Avoid trying to recreate a traditional distributed ACID transaction across many services unless there's a compelling reason.
+
+19. Background Processing
+Many systems require:
+
+Worker services
+
+Scheduled jobs
+
+Cron jobs
+
+Message consumers
+
+Batch processing
+
+Retry workers
+
+Example:
+
+Order Service
+     ↓
+Kafka
+     ↓
+Email Worker
+     ↓
+Email Provider
+
+20. File/Object Storage
+For images, documents, exports, backups, etc.:
+
+Object storage
+
+Pre-signed URLs
+
+CDN
+
+Virus/malware scanning where applicable
+
+Lifecycle policies
+
+Examples:
+
+Amazon S3
+
+Azure Blob Storage
+
+Google Cloud Storage
+
+21. Infrastructure & Networking
+A production deployment may contain:
+
+Internet
+   ↓
+DNS
+   ↓
+CDN
+   ↓
+WAF
+   ↓
+Load Balancer
+   ↓
+API Gateway / Ingress
+   ↓
+Kubernetes
+   ↓
+Microservices
+
+Supporting infrastructure:
+
+VPC/VNet
+
+Public/private subnets
+
+Security groups/firewalls
+
+NAT
+
+DNS
+
+TLS certificates
+
+WAF
+
+Load balancers
+
+22. Security & DevSecOps
+Integrate security into the development lifecycle:
+
+SAST
+
+DAST
+
+Dependency scanning
+
+Container scanning
+
+Secret scanning
+
+SBOM
+
+Image signing
+
+Vulnerability management
+
+Runtime security
+
+Audit trails
+
+23. Disaster Recovery
+Production systems should define:
+
+Database backups
+
+Backup retention
+
+Point-in-time recovery
+
+Multi-AZ deployment
+
+Multi-region strategy when required
+
+Disaster recovery procedures
+
+RTO
+
+RPO
+
+Disaster recovery testing
+
+24. Governance
+As the number of services grows, you'll need:
+
+Service ownership
+
+API standards
+
+Naming conventions
+
+Versioning standards
+
+Logging standards
+
+Security standards
+
+Dependency management
+
+Architecture documentation
+
+Service catalog
+
+Runbooks
+
+Reference Architecture
+A fairly complete architecture looks like:
+
+                         ┌───────────────┐
+                         │ Web / Mobile  │
+                         └───────┬───────┘
+                                 │
+                              HTTPS
+                                 │
+                         ┌───────▼───────┐
+                         │ CDN / WAF      │
+                         └───────┬───────┘
+                                 │
+                         ┌───────▼───────┐
+                         │ Load Balancer  │
+                         └───────┬───────┘
+                                 │
+                         ┌───────▼───────┐
+                         │ API Gateway    │
+                         └───────┬───────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+        ┌─────▼─────┐      ┌─────▼─────┐      ┌─────▼─────┐
+        │ User      │      │ Order     │      │ Payment   │
+        │ Service   │      │ Service   │      │ Service   │
+        └─────┬─────┘      └─────┬─────┘      └─────┬─────┘
+              │                  │                  │
+        ┌─────▼─────┐      ┌─────▼─────┐      ┌─────▼─────┐
+        │ User DB   │      │ Order DB  │      │ Payment DB│
+        └───────────┘      └───────────┘      └───────────┘
+              │                  │                  │
+              └──────────────────┼──────────────────┘
+                                 │
+                         ┌───────▼───────┐
+                         │ Message Broker│
+                         │ Kafka/RabbitMQ │
+                         └───────┬───────┘
+                                 │
+                    ┌────────────┼────────────┐
+                    │            │            │
+               Notification   Analytics    Workers
+
+
+      ┌─────────────────────────────────────────────┐
+      │              PLATFORM LAYER                 │
+      │                                             │
+      │ Kubernetes | Service Discovery | Secrets    │
+      │ Config | Autoscaling | Ingress | Registry   │
+      └─────────────────────────────────────────────┘
+
+      ┌─────────────────────────────────────────────┐
+      │             OBSERVABILITY                   │
+      │                                             │
+      │ OpenTelemetry | Prometheus | Grafana        │
+      │ Centralized Logs | Distributed Tracing      │
+      └─────────────────────────────────────────────┘
+
+      ┌─────────────────────────────────────────────┐
+      │                CI/CD                        │
+      │                                             │
+      │ Git → Build → Test → Scan → Deploy         │
+      │ Terraform / Helm / Argo CD                 │
+      └─────────────────────────────────────────────┘
+
+Minimum production stack
+If you're trying to avoid over-engineering, a practical baseline is:
+
+Area	Component
+API	API Gateway / Ingress
+Services	Docker containers
+Orchestration	Kubernetes or managed container platform
+Communication	REST/gRPC + message broker
+Database	PostgreSQL/MySQL per service where appropriate
+Cache	Redis
+Messaging	Kafka/RabbitMQ or managed equivalent
+Security	OAuth2/OIDC + secrets manager
+Config	Environment/config management
+CI/CD	GitHub Actions/GitLab CI
+IaC	Terraform
+Logs	Centralized structured logging
+Metrics	Prometheus + Grafana
+Tracing	OpenTelemetry
+Registry	Container registry
+Resilience	Timeout + retry + circuit breaker
+Testing	Unit + integration + contract + E2E
+DR	Automated backups + recovery plan
+
+Important: not every microservice architecture needs every component above. Kubernetes, service meshes, Kafka, CQRS, event sourcing, and similar infrastructure should be introduced when the system's scale or requirements justify them rather than simply because they're associated with microservices.
+
+
+ChatGPT is AI and can make mistakes.
+
+No file chosenNo file chosenNo file chosen
+
+Chat with ChatGPT
+Ask ChatGPT
