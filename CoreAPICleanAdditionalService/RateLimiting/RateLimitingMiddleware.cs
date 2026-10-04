@@ -27,15 +27,6 @@ namespace Core.API.Clean.AdditionalService
 
         public async Task InvokeAsync(HttpContext context)
         {
-            if (!_settings.EnableRateLimiting)
-            {
-                await _next(context);
-                //_next(context)
-                // This will pass next middleware in the pipeline to run rightaway
-                // While Control flow going back to response rendering execution no further logic of rate limiting needed 
-                return;
-            }
-
             // Determine user role and appropriate rate limit
             var userRole = GetUserRole(context);
             var rateLimit = GetRateLimit(userRole);
@@ -50,14 +41,14 @@ namespace Core.API.Clean.AdditionalService
 
             if (!isAllowed)
             {
-                _logger.LogWarning("Rate limit exceeded for {ClientIdentifier} with role {UserRole}. Limit: {Limit}", 
+                _logger.LogWarning("Rate limit exceeded for {ClientIdentifier} with role {UserRole}. Limit: {Limit}",
                     clientIdentifier, userRole, rateLimit);
 
                 context.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
                 context.Response.Headers.Append("X-RateLimit-Limit", rateLimit.ToString());
                 context.Response.Headers.Append("X-RateLimit-Remaining", "0");
                 context.Response.Headers.Append("Retry-After", "60");
-                
+
                 var errorResponse = new
                 {
                     success = false,
@@ -120,12 +111,14 @@ namespace Core.API.Clean.AdditionalService
 
         private int GetRateLimit(string userRole)
         {
-            return userRole switch
-            {
-                "Admin" => _settings?.GeneralRules?.Admin?.PerMinute ?? 5000,
-                "Authenticated" => _settings?.GeneralRules?.Authenticated?.PerMinute ?? 1000,
-                _ => _settings?.GeneralRules?.Anonymous?.PerMinute ?? 100
-            };
+            //return userRole switch
+            //{
+            //    "Admin" => _settings?.GeneralRules?.Admin?.PerMinute ?? 5000,
+            //    "Authenticated" => _settings?.GeneralRules?.Authenticated?.PerMinute ?? 1000,
+            //    _ => _settings?.GeneralRules?.Anonymous?.PerMinute ?? 100
+            //};
+
+            return 10;
         }
     }
 }

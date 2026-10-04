@@ -57,31 +57,7 @@ namespace Core.API.Clean.AdditionalService
             // Configure Rate Limiting services
             var rateLimitingSettings = configuration.GetSection("RateLimiting").Get<RateLimitingSettings>();
 
-            if (rateLimitingSettings != null && rateLimitingSettings.EnableRateLimiting)
-            {
-                if (rateLimitingSettings.UseDistributedRateLimiting)
-                {
-                    services.AddSingleton<IRateLimitingService>(sp =>
-                    {
-                        var connectionMultiplexer = sp.GetService<IConnectionMultiplexer>();
-                        if (connectionMultiplexer != null)
-                        {
-                            return new RedisRateLimitingService(connectionMultiplexer, 
-                                sp.GetRequiredService<ILogger<RedisRateLimitingService>>());
-                        }
-                        // Fallback to in-memory rate limiting if Redis is unavailable
-                        return new InMemoryRateLimitingService(sp.GetRequiredService<ILogger<InMemoryRateLimitingService>>());
-                    });
-                }
-                else
-                {
-                    services.AddSingleton<IRateLimitingService, InMemoryRateLimitingService>();
-                }
-            }
-            else
-            {
-                services.AddSingleton<IRateLimitingService, InMemoryRateLimitingService>();
-            }
+            services.AddSingleton<IRateLimitingService, InMemoryRateLimitingService>();
         }
 
         //Register resilience pipeline with policies for Retry, Circuit Breaker, Timeout
