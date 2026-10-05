@@ -1,0 +1,86 @@
+Pagination and Sorting Server Side
+
+Outbox Pattern
+
+Resilience Bulkhead  Microsoft.Extensions.Resilience / Polly-based resilience strategies.
+
+
+15. API Gateway
+
+load balancing
+
+16. Health Checks
+
+GET /health
+GET /alive
+
+pagination
+
+Distributed transactions	Saga, Outbox, Inbox
+
+API infrastructure	API Gateway, rate limiting, load balancing
+
+Reverse proxy
+
+1. Client & API Layer
+Web/mobile clients
+
+Google Pub/Sub
+Spot on. YARP (Yet Another Reverse Proxy) is one of the most rewarding libraries to study in the modern .NET ecosystem. Because it’s built by Microsoft specifically to serve as a high-performance reverse proxy and API gateway, it acts as a masterclass in how ASP.NET Core works under the hood.
+---------------
+
+Event-driven architecture RabbitMQ 
+
+RabbitMQ
+Azure Service Bus
+queues
+topics
+subscriptions
+competing consumers
+dead-letter queues
+message retry
+poison messages
+message ordering
+duplicate messages
+
+
+24. Distributed locking and concurrency
+
+optimistic concurrency
+row version
+distributed locks
+idempotency
+atomic operations
+consistency models
+
+
+Key Fault-Tolerance Strategies in Polly
+Polly provides several core resilience patterns to handle failures gracefully:
+
+Retry: Automatically retries a failed operation (useful for temporary network glitches). You can configure it with backoff strategies (like exponential backoff).
+
+Circuit Breaker: If a service is consistently failing, the circuit "breaks" to stop sending requests, giving the failing system time to recover rather than hammering it with more traffic.
+
+Timeout: Ensures an operation doesn't hang indefinitely if a downstream service is unresponsive.
+
+Bulkhead Isolation: Restricts the number of concurrent requests to a specific service, preventing a failure in one part of the application from consuming all system threads or resources.
+
+Fallback: Defines an alternative action or default value to return if all retries and resilience measures fail (e.g., returning cached data).
+
+Combining Policies (Resilience Strategies)
+One of Polly's most powerful features is Policy Wrapping, which allows you to combine multiple fault-tolerance patterns together. For example, you can wrap a Timeout policy inside a Retry policy, which is further wrapped inside a Circuit Breaker.
+
+Common Backoff Strategies
+Constant (Fixed) Delay: Waits the exact same amount of time between every retry (e.g., 2 seconds, 2 seconds, 2 seconds).
+
+Pros: Simple to understand.
+
+Cons: Can overwhelm a recovering server if multiple clients keep hitting it at regular intervals.
+
+Linear Backoff: The delay increases by a fixed increment with each attempt (e.g., 2 seconds, then 4 seconds, then 6 seconds, then 8 seconds).
+
+Exponential Backoff: The delay multiplies or grows exponentially with each failure (e.g., 2 seconds, 4 seconds, 8 seconds, 16 seconds, 32 seconds). This is the gold standard for network and cloud services. It prevents spamming a down service while still recovering quickly if the outage is brief.
+
+Exponential Backoff with Jitter: Adds a small amount of randomness (jitter) to the exponential delay (e.g., instead of exactly 8 seconds, it might wait anywhere between 7.5 and 8.5 seconds).
+
+Why it matters: If thousands of users experience a glitch at the exact same time, pure exponential backoff causes them all to retry at the exact same future seconds. Jitter spreads out those requests over time to protect the server.

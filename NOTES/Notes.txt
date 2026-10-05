@@ -1,3 +1,28 @@
+A production microservice system needs capabilities around service boundaries, communication, data, resilience, security, observability, messaging, deployment, scalability, and governance.
+
+1. The complete capability map
+
+I would structure your learning project into these 15 areas:
+
+#	Capability	Key .NET concepts to learn
+1	Microservice boundaries	Bounded Context, DDD, database-per-service
+2	API design	REST, OpenAPI, versioning, pagination
+3	Service-to-service communication	HTTP, gRPC
+4	Asynchronous messaging	RabbitMQ / Azure Service Bus
+5	Event-driven architecture	Domain Events, Integration Events
+6	Data management	EF Core, migrations, transactions
+7	Distributed transactions	Saga, Outbox, Inbox
+8	Resilience	Retry, timeout, circuit breaker, bulkhead
+9	Distributed caching	Redis
+10	Security	OAuth2/OIDC, JWT, OAuth scopes, RBAC
+11	Observability	Logging, metrics, tracing, OpenTelemetry
+12	Configuration/secrets	Configuration, Key Vault, secret management
+13	Scalability	Kubernetes, Docker, KEDA, autoscaling
+14	API infrastructure	API Gateway, rate limiting, load balancing
+15	DevOps/governance	CI/CD, health checks, deployment, testing
+
+The important point is that not every microservice needs every capability. The architecture should provide these capabilities as reusable platform patterns, while individual services adopt them where appropriate.
+
 https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/using-openapi-documents?view=aspnetcore-10.0
 
 1. Client & API Layer
