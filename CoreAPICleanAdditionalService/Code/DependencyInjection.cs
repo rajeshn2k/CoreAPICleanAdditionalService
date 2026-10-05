@@ -132,8 +132,8 @@ namespace Core.API.Clean.AdditionalService
                 return new ResilientCacheService(innerCacheService, pipelineProvider, logger);
             });
 
-            // 2. Register the state provider in DI so the health check can inject it
-            services.AddSingleton(circuitBreakerStateProvider);
+            // 2. Register the state provider in DI with a key so the health check can inject it
+            services.AddKeyedSingleton("CacheService", circuitBreakerStateProvider);
         }
 
         //Register resilience pipeline with policies for Retry, Circuit Breaker, Timeout
@@ -188,8 +188,8 @@ namespace Core.API.Clean.AdditionalService
                 return new ResilientMessagePublisher(innerMessagePublisher, pipelineProvider, logger);
             });
 
-            // 2. Register the state provider in DI so the health check can inject it
-            services.AddSingleton(circuitBreakerStateProvider);
+            // 2. Register the state provider in DI with a key so the health check can inject it
+            services.AddKeyedSingleton("MessagePublisher", circuitBreakerStateProvider);
         }
 
         //Dependency Injection for Entity Framework + SQLite

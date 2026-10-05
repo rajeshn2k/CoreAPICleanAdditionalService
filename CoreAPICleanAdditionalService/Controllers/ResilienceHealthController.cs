@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Resilience;
 using Polly;
 using Polly.CircuitBreaker;
@@ -20,8 +21,8 @@ namespace Core.API.Clean.AdditionalService.Controllers
 
         public ResilienceHealthController(
             ResiliencePipelineProvider<string> pipelineProvider,
-            CircuitBreakerStateProvider cacheStateProvider,
-            CircuitBreakerStateProvider messageStateProvider,
+            [FromKeyedServices("CacheService")] CircuitBreakerStateProvider cacheStateProvider,
+            [FromKeyedServices("MessagePublisher")] CircuitBreakerStateProvider messageStateProvider,
             ILogger<ResilienceHealthController> logger)
         {
             _cacheStateProvider = cacheStateProvider;
