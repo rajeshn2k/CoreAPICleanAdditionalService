@@ -30,8 +30,8 @@ namespace Core.API.Clean.AdditionalService.Controllers
         [HttpGet]
         public ActionResult GetResilienceHealth()
         {
-            var redisPipeline = _pipelineProvider.GetPipeline("Redis");
-            var rabbitMQPipeline = _pipelineProvider.GetPipeline("RabbitMQ");
+            var redisPipeline = _pipelineProvider.GetPipeline("InMemoryCacheService");
+            var rabbitMQPipeline = _pipelineProvider.GetPipeline("InMemoryMessagePublisher");
 
             var redisCircuitState = GetCircuitState(redisPipeline);
             var rabbitMQCircuitState = GetCircuitState(rabbitMQPipeline);

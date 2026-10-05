@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Asp.Versioning;
+//using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 
@@ -6,14 +7,12 @@ namespace Core.API.Clean.AdditionalService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [AllowAnonymous]
+    //[ApiVersion("1.0")]
+    //[AllowAnonymous]
+    //[Route("api/v{version:apiVersion}/[controller]")]
     public class PingController : ControllerBase
     {
-        public PingController()
-        {
-        }
-
-        [HttpGet("Environment")]
+        [HttpGet]
         public JsonResult GetEnvironment()
         {
             IDictionary<string, string> keyValuePairs = new Dictionary<string, string>
