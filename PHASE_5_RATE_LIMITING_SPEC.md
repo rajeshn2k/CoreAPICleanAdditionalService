@@ -395,6 +395,34 @@ public class EndpointMultiplierRule
 ### Rate Limiting Service Implementations
 
 #### InMemoryRateLimitingService
+
+```
+Request arrives
+      |
+      v
+IsAllowedAsync(key, limit, period)
+      |
+      v
+Does the key exist?
+   /          \
+ No            Yes
+ |              |
+Create          Is counter expired?
+Count = 1       /            \
+Expiry = now   Yes            No
+ + period       |              |
+                Reset          Count++
+                Count = 1
+                Expiry
+                |
+                v
+          Is Count <= limit?
+             /       \
+           Yes        No
+            |          |
+         Allow       Reject
+
+```
 ```csharp
 public class InMemoryRateLimitingService : IRateLimitingService
 {
