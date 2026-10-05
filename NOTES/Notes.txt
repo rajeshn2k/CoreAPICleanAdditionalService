@@ -848,3 +848,119 @@ No file chosenNo file chosenNo file chosen
 
 Chat with ChatGPT
 Ask ChatGPT
+
+
+
+var healthRegistry = new ResilienceHealthRegistry();
+
+var cacheStateProvider = new CircuitBreakerStateProvider();
+healthRegistry.Register("InMemoryCacheService", cacheStateProvider);
+
+var messagingStateProvider = new CircuitBreakerStateProvider();
+healthRegistry.Register("InMemoryMessagePublisher", messagingStateProvider);
+
+// Register the pipelines using these providers...
+services.AddResiliencePipeline("InMemoryCacheService", pipelineBuilder =>
+{
+    pipelineBuilder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
+    {
+        FailureRatio = 0.3,
+        MinimumThroughput = 2,
+        SamplingDuration = TimeSpan.FromSeconds(30),
+        BreakDuration = TimeSpan.FromSeconds(60),
+        StateProvider = cacheStateProvider
+    });
+    // ... rest of cache pipeline options
+});
+
+services.AddResiliencePipeline("InMemoryMessagePublisher", pipelineBuilder =>
+{
+    pipelineBuilder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
+    {
+        FailureRatio = 0.3,
+        MinimumThroughput = 2,
+        SamplingDuration = TimeSpan.FromSeconds(30),
+        BreakDuration = TimeSpan.FromSeconds(60),
+        StateProvider = messagingStateProvider
+    });
+    // ... rest of messaging pipeline options
+});
+
+// Register the registry itself in DI
+services.AddSingleton(healthRegistry);
+
+
+
+using Microsoft.AspNetCore.Mvc;
+using Polly.CircuitBreaker;
+
+namespace Core.API.Clean.AdditionalService.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ResilienceHealthController : ControllerBase
+    {
+        private readonly ResilienceHealthRegistry _healthRegistry;
+        private readonly ILogger<ResilienceHealthController> _logger;
+
+        public ResilienceHealthController(
+            ResilienceHealthRegistry healthRegistry,
+            ILogger<ResilienceHealthController> logger)
+        {
+            _healthRegistry = healthRegistry;
+            _logger = logger;
+        }
+
+        [HttpGet]
+        public ActionResult GetResilienceHealth()
+        {
+            var servicesHealth = new Dictionary<string, object>();
+            bool overallHealth = true;
+
+            foreach (var serviceKey in _healthRegistry.GetRegisteredServices())
+            {
+                var state = _healthRegistry.GetCircuitState(serviceKey) ?? CircuitState.Closed;
+                var isHealthy = state == CircuitState.Closed;
+
+                if (!isHealthy) overallHealth = false;
+
+                servicesHealth[serviceKey] = new
+                {
+                    State = state.ToString(),
+                    IsHealthy = isHealthy
+                };
+            }
+
+            var healthStatus = new
+            {
+                Timestamp = DateTime.UtcNow,
+                Services = servicesHealth,
+                OverallHealth = overallHealth
+            };
+
+            _logger.LogInformation("Resilience health check executed for all registered pipelines.");
+            return Ok(healthStatus);
+        }
+
+        [HttpGet("{serviceKey}")]
+        public ActionResult GetServiceResilienceHealth(string serviceKey)
+        {
+            var state = _healthRegistry.GetCircuitState(serviceKey);
+
+            if (state == null)
+            {
+                return NotFound(new { Message = $"Pipeline key '{serviceKey}' not found." });
+            }
+
+            var serviceHealth = new
+            {
+                ServiceKey = serviceKey,
+                State = state.Value.ToString(),
+                IsHealthy = state.Value == CircuitState.Closed,
+                Timestamp = DateTime.UtcNow
+            };
+
+            return Ok(serviceHealth);
+        }
+    }
+}
