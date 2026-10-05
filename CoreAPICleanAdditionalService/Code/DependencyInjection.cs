@@ -71,6 +71,9 @@ namespace Core.API.Clean.AdditionalService
 
             // Register InMemory or Redis cache resilience pipeline builder (ResiliencePipelineProvider)
 
+            // 1. Instantiate the state provider outside the pipeline builder
+            var circuitBreakerStateProvider = new CircuitBreakerStateProvider();
+
             services.AddResiliencePipeline("InMemoryCacheService", pipelineBuilder =>
             {
 
@@ -85,7 +88,8 @@ namespace Core.API.Clean.AdditionalService
                     FailureRatio = 0.3,
                     MinimumThroughput = 2,
                     SamplingDuration = TimeSpan.FromSeconds(30),
-                    BreakDuration = TimeSpan.FromSeconds(60)
+                    BreakDuration = TimeSpan.FromSeconds(60),
+                    StateProvider = circuitBreakerStateProvider // <-- Hook it up the state provider here
                 });
 
 
@@ -127,6 +131,9 @@ namespace Core.API.Clean.AdditionalService
 
                 return new ResilientCacheService(innerCacheService, pipelineProvider, logger);
             });
+
+            // 2. Register the state provider in DI so the health check can inject it
+            services.AddSingleton(circuitBreakerStateProvider);
         }
 
         //Register resilience pipeline with policies for Retry, Circuit Breaker, Timeout
@@ -135,6 +142,9 @@ namespace Core.API.Clean.AdditionalService
         private static void ConfigureServices_MessagePublish_ResiliencePipeline_BuildPolicies_InjectMessagePublisherService(
         IServiceCollection services, IConfiguration configuration)
         {
+            // 1. Instantiate the state provider outside the pipeline builder
+            var circuitBreakerStateProvider = new CircuitBreakerStateProvider();
+
             // Register RabbitMQ resilience pipeline
             //4time it required to test timeout
             services.AddResiliencePipeline("InMemoryMessagePublisher", pipelineBuilder =>
@@ -146,7 +156,8 @@ namespace Core.API.Clean.AdditionalService
                     FailureRatio = 0.3,
                     MinimumThroughput = 2,
                     SamplingDuration = TimeSpan.FromSeconds(30),
-                    BreakDuration = TimeSpan.FromSeconds(60)
+                    BreakDuration = TimeSpan.FromSeconds(60),
+                    StateProvider = circuitBreakerStateProvider
                 });
 
                 pipelineBuilder.AddTimeout(new TimeoutStrategyOptions
@@ -176,6 +187,9 @@ namespace Core.API.Clean.AdditionalService
 
                 return new ResilientMessagePublisher(innerMessagePublisher, pipelineProvider, logger);
             });
+
+            // 2. Register the state provider in DI so the health check can inject it
+            services.AddSingleton(circuitBreakerStateProvider);
         }
 
         //Dependency Injection for Entity Framework + SQLite

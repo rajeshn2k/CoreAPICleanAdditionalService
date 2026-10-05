@@ -11,7 +11,7 @@ namespace Core.Library.Clean.AdditionalService
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
         //e-exception, t-timeout, a-default
-        private readonly string testMode = "a";
+        private readonly string testMode = "e";
 
         public InMemoryCacheService(
             ILogger<InMemoryCacheService> logger, ResilientTestService resilientTestService)

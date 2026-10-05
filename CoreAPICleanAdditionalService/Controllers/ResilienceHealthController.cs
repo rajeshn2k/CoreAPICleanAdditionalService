@@ -14,12 +14,18 @@ namespace Core.API.Clean.AdditionalService.Controllers
     public class ResilienceHealthController : ControllerBase
     {
         private readonly ResiliencePipelineProvider<string> _pipelineProvider;
+        private readonly CircuitBreakerStateProvider _cacheStateProvider;
+        private readonly CircuitBreakerStateProvider _messageStateProvider;
         private readonly ILogger<ResilienceHealthController> _logger;
 
         public ResilienceHealthController(
             ResiliencePipelineProvider<string> pipelineProvider,
+            CircuitBreakerStateProvider cacheStateProvider,
+            CircuitBreakerStateProvider messageStateProvider,
             ILogger<ResilienceHealthController> logger)
         {
+            _cacheStateProvider = cacheStateProvider;
+            _messageStateProvider = messageStateProvider;
             _pipelineProvider = pipelineProvider;
             _logger = logger;
         }
@@ -30,11 +36,14 @@ namespace Core.API.Clean.AdditionalService.Controllers
         [HttpGet]
         public ActionResult GetResilienceHealth()
         {
-            var redisPipeline = _pipelineProvider.GetPipeline("InMemoryCacheService");
-            var rabbitMQPipeline = _pipelineProvider.GetPipeline("InMemoryMessagePublisher");
+            // var redisPipeline = _pipelineProvider.GetPipeline("InMemoryCacheService");
+            // var rabbitMQPipeline = _pipelineProvider.GetPipeline("InMemoryMessagePublisher");
 
-            var redisCircuitState = GetCircuitState(redisPipeline);
-            var rabbitMQCircuitState = GetCircuitState(rabbitMQPipeline);
+            // var redisCircuitState = GetCircuitState(redisPipeline);
+            // var rabbitMQCircuitState = GetCircuitState(rabbitMQPipeline);
+
+            var redisState = _cacheStateProvider.CircuitState;
+            var rabbitMQState = _messageStateProvider.CircuitState;
 
             var healthStatus = new
             {
@@ -43,20 +52,20 @@ namespace Core.API.Clean.AdditionalService.Controllers
                 {
                     Redis = new
                     {
-                        State = redisCircuitState.ToString(),
-                        IsHealthy = redisCircuitState == CircuitState.Closed
+                        State = redisState.ToString(),
+                        IsHealthy = redisState == CircuitState.Closed
                     },
                     RabbitMQ = new
                     {
-                        State = rabbitMQCircuitState.ToString(),
-                        IsHealthy = rabbitMQCircuitState == CircuitState.Closed
+                        State = rabbitMQState.ToString(),
+                        IsHealthy = rabbitMQState == CircuitState.Closed
                     }
                 },
-                OverallHealth = redisCircuitState == CircuitState.Closed && rabbitMQCircuitState == CircuitState.Closed
+                OverallHealth = redisState == CircuitState.Closed && rabbitMQState == CircuitState.Closed
             };
 
-            _logger.LogInformation("Resilience health check: Redis={RedisState}, RabbitMQ={RabbitMQState}", 
-                redisCircuitState, rabbitMQCircuitState);
+           _logger.LogInformation("Resilience health check: Redis={RedisState}, RabbitMQ={RabbitMQState}", 
+                redisState, rabbitMQState);
 
             return Ok(healthStatus);
         }
@@ -67,8 +76,20 @@ namespace Core.API.Clean.AdditionalService.Controllers
         [HttpGet("{serviceKey}")]
         public ActionResult GetServiceResilienceHealth(string serviceKey)
         {
-            var pipeline = _pipelineProvider.GetPipeline(serviceKey);
-            var circuitState = GetCircuitState(pipeline);
+            CircuitState circuitState;
+
+            if (serviceKey.Equals("InMemoryCacheService", StringComparison.OrdinalIgnoreCase))
+            {
+                circuitState = _cacheStateProvider.CircuitState;
+            }
+            else if (serviceKey.Equals("InMemoryMessagePublisher", StringComparison.OrdinalIgnoreCase))
+            {
+                circuitState = _messageStateProvider.CircuitState;
+            }
+            else
+            {
+                return NotFound(new { Message = $"Pipeline key '{serviceKey}' not found or doesn't expose a circuit breaker state provider." });
+            }
             
             var serviceHealth = new
             {
