@@ -1,0 +1,5 @@
+﻿ProjectID,ProjectName,ReportingMonth,MilestoneOrBenefit,BaselineDateOrTarget,CurrentForecastDateOrValue,Status,BenefitType,BenefitAmountUSD000,BenefitEvidenceType,Owner,Notes
+P-101,Customer Portal Renewal,2026-08,Pilot launch,2026-09-15,2026-10-10,Delayed,Annual support-cost avoidance,300,Forecast,Elena Ruiz,Integration rework delayed pilot.
+P-102,Data Platform Modernization,2026-08,Wave 1 migration,2026-08-31,2026-09-30,Delayed,Annual analyst productivity benefit,240,Forecast,Marcus Lee,Data quality defects added remediation.
+P-103,Service Workflow Automation,2026-08,Claims workflow go-live,2026-09-30,2026-09-25,On track,Annual handling-cost avoidance,180,Forecast,Priya Nair,Forecast unchanged.
+P-104,Identity & Access Upgrade,2026-08,Privileged access rollout,2026-10-15,2026-10-22,At risk,Annual audit effort reduction,110,Forecast,Jordan Blake,Security test environment booking risk.

@@ -1,0 +1,5 @@
+﻿ProjectID,ProjectName,ReportingMonth,ApprovedBudgetUSD000,MonthlySpendUSD000,CumulativeActualSpendUSD000,ForecastAtCompletionUSD000,FinanceStatus,SourceOwner,Notes
+P-101,Customer Portal Renewal,2026-08,1200,115,535,1220,Amber,Finance Controller,Forecast rose after integration rework.
+P-102,Data Platform Modernization,2026-08,900,105,415,975,Amber,Finance Controller,Forecast includes additional vendor support.
+P-103,Service Workflow Automation,2026-08,650,68,253,640,Green,Finance Controller,Forecast within baseline.
+P-104,Identity & Access Upgrade,2026-08,500,50,195,505,Amber,Finance Controller,Small forecast overrun; review pending.

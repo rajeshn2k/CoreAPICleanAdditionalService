@@ -1,0 +1,5 @@
+﻿ProjectID,ProjectName,ReportingMonth,ApprovedBudgetUSD000,MonthlySpendUSD000,CumulativeActualSpendUSD000,ForecastAtCompletionUSD000,FinanceStatus,SourceOwner,Notes
+P-101,Customer Portal Renewal,2026-07,1200,105,420,1190,Green,Finance Controller,Forecast within baseline.
+P-102,Data Platform Modernization,2026-07,900,95,310,930,Amber,Finance Controller,Vendor migration effort increasing.
+P-103,Service Workflow Automation,2026-07,650,62,185,620,Green,Finance Controller,Forecast within baseline.
+P-104,Identity & Access Upgrade,2026-07,500,48,145,490,Green,Finance Controller,Forecast within baseline.

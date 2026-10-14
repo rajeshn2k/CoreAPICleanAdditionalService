@@ -1,0 +1,35 @@
+1. Keep the responsibilities separate
+
+Use each file for one purpose so the instructions are not duplicated.
+File or folder	Responsibility
+.kiro/steering/portfolio-reporting.md	Permanent rules, complete source-file manifest, file-selection rules, calculation rules and report validation
+.kiro/skills/*/SKILL.md	Specialized analysis procedures loaded when relevant
+04_Prompt_Library/01_Generate_September_Report.md	The task to run for September; tells Kiro to follow the steering document
+01_Portfolio_Context/	Stable portfolio context
+02_Source_Evidence/Monthly/	Monthly financial, milestone, benefits, risk, resource and decision evidence
+05_Expected_Reports/	Expected output and calculation answer key for testing only
+This matches Kiro's design: steering provides persistent guidance, while skills package specialized instructions and can activate when relevant. 
+
+
+
+2. How to run it in Kiro Chat
+
+1. Open the ExecutivePortfolioSnapshot workspace in Kiro.
+2. Verify that portfolio-reporting.md appears under the workspace's Steering section and has inclusion: always at the beginning.
+3. Confirm the four SKILL.md files have valid YAML frontmatter containing name and description. Make the descriptions specific enough that Kiro can identify when to use each skill.
+4. Open 04_Prompt_Library/01_Generate_September_Report.md and reference it in Chat using the file-reference mechanism available in your Kiro version. If necessary, copy its contents into the chat.
+5. Ask Kiro to execute the prompt, follow the steering file, and verify source-file availability before writing the report.
+6. Review the report and then run your validation checks against the answer key.
+4. Kiro's documented steering behavior supports always-included instructions and manual references; the CLI also supports referencing files and directories in chat using @ paths. The exact interaction for referencing a prompt file can vary by Kiro interface and version. 
+5. Review any file-access or overwrite confirmation Kiro requests, and approve only the intended output-file operation.
+6. Check that 06_Generated_Reports/Executive_Portfolio_Snapshot_September_2026.md exists and contains the full report.
+Compare the generated report against the expected report and answer key in 05_Expected_Reports/.
+
+
+3. One final recommendation: avoid duplicate instructions, not necessary evidence
+
+There are two different kinds of duplication:
+- Instruction duplication: Avoid copying formulas, report sections, governance rules and validation requirements into both the steering file and the prompt file.
+- Evidence overlap: It is acceptable for two source files to mention the same decision or risk. Kiro should reconcile the records, prefer the appropriate authoritative source for each field, and flag conflicting values rather than silently counting the same item twice.
+Also, your four skills should contain the method for analysis, not copies of the entire monthly CSV data. The monthly files remain the source of truth.
+Your final design is sound: one permanent steering document, four reusable skills, one prompt file per reporting task, portfolio context files, monthly evidence, and a separate validation folder. You can add an October prompt later without duplicating the reporting rules.

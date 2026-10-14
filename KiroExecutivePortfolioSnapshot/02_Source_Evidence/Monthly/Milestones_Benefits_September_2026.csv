@@ -1,0 +1,5 @@
+﻿ProjectID,ProjectName,ReportingMonth,MilestoneOrBenefit,BaselineDateOrTarget,CurrentForecastDateOrValue,Status,BenefitType,BenefitAmountUSD000,BenefitEvidenceType,Owner,Notes
+P-101,Customer Portal Renewal,2026-09,Pilot launch,2026-09-15,2026-11-05,Delayed,Annual support-cost avoidance,300,Forecast,Elena Ruiz,Pilot forecast 7 weeks after baseline; benefit not yet realized.
+P-102,Data Platform Modernization,2026-09,Wave 1 migration,2026-08-31,2026-10-20,Delayed,Annual analyst productivity benefit,240,Forecast,Marcus Lee,"Wave 1 is 7 weeks beyond baseline; benefits remain forecast, not realized."
+P-103,Service Workflow Automation,2026-09,Claims workflow go-live,2026-09-30,2026-10-05,Delayed,Annual handling-cost avoidance,180,Forecast,Priya Nair,UAT defect fixes moved go-live by 5 days; benefits not yet validated.
+P-104,Identity & Access Upgrade,2026-09,Privileged access rollout,2026-10-15,2026-10-22,At risk,Annual audit effort reduction,110,Forecast,Jordan Blake,Security test environment capacity remains constrained.

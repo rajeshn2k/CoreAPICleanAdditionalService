@@ -1,0 +1,5 @@
+﻿ProjectID,ProjectName,ReportingMonth,ApprovedBudgetUSD000,MonthlySpendUSD000,CumulativeActualSpendUSD000,ForecastAtCompletionUSD000,FinanceStatus,SourceOwner,Notes
+P-101,Customer Portal Renewal,2026-09,1200,130,665,1320,Red,Finance Controller,Forecast includes $120k integration remediation; no approval for additional funding recorded.
+P-102,Data Platform Modernization,2026-09,900,120,535,1020,Red,Finance Controller,Forecast includes vendor extension and data-quality remediation.
+P-103,Service Workflow Automation,2026-09,650,72,325,630,Green,Finance Controller,Forecast remains within baseline.
+P-104,Identity & Access Upgrade,2026-09,500,52,247,510,Amber,Finance Controller,Forecast over baseline by $10k; project lead mitigation in progress.

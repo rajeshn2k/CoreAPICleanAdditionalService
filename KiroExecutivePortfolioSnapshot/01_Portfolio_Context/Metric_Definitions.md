@@ -1,0 +1,12 @@
+# Metric Definitions
+- Monthly spend: actual spend for the calendar month, USD thousands.
+- Cumulative actual spend: booked spend through month-end.
+- Approved budget: approved baseline effective at the reporting date.
+- FAC: latest forecast total project cost, not actual spend.
+- Forecast variance ($) = FAC − approved budget.
+- Forecast variance (%) = (FAC − approved budget) / approved budget × 100.
+- Cumulative actual consumed (%) = cumulative actual / approved budget × 100.
+- Monthly burn (%) = monthly spend / approved budget × 100.
+- Benefits forecast is not realized benefit. State evidence gaps.
+- Round percentages to one decimal place and money to nearest $1,000.
+- Compare like-for-like metrics across months.
